@@ -1,10 +1,5 @@
 package stats
 
-import (
-	"time"
-)
-
-func getRateSpeed(filename string, sampleStartTime time.Time) float64 {
-
-	return 1
+func FetchUDRRate(c *controller, filename string) (float64, finished bool) {
+	return 1sdfsfdsfsd
 }

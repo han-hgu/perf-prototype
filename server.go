@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/perf-prototype/rating"
 )
 
@@ -27,13 +29,11 @@ func secretHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // udrHandler
-// udrHandler responded with a unique identifier after below
-// request is received, it creates a record for rating speed and
-// update it on demand
-// request format:
+// udrHandler returns a unique identifier after request is received
+// request format example:
 //{
-// 	"amount_field_index": 5,
-// 	"timestamp_field_index": 2,
+// 	"amount_field_index": 4,
+// 	"timestamp_field_index": 1,
 // 	"batch_size": 1000,
 // 	"number_of_files": 2,
 // 	"drop_location": "C:/UsageData",
@@ -48,7 +48,7 @@ func secretHandler(w http.ResponseWriter, r *http.Request) {
 // 	]
 // }
 func udrHandler(w http.ResponseWriter, r *http.Request) {
-	// Decode json body to the rating controller testParams object.
+	// Decode json body to rating.controller.testParams obj
 	var params rating.TestParams
 	//a, _ := ioutil.ReadAll(r.Body)
 	//log.Println(string(a))
@@ -66,13 +66,13 @@ func udrHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func main() {
-// 	r := mux.NewRouter()
-// 	// TODO: OPTIONS handler etc.
-// 	r.HandleFunc("/rating", ratingStatsHandler).Methods("GET")
-// 	r.HandleFunc("/rating", udrHandler).Methods("POST")
-// 	r.HandleFunc("/billing", billingStatsHandler).Methods("GET")
-// 	r.HandleFunc("/secret", secretHandler).Methods("GET")
-//
-// 	log.Fatal(http.ListenAndServe(":4999", r))
-// }
+func main() {
+	r := mux.NewRouter()
+	// TODO: OPTIONS handler
+	r.HandleFunc("/rating", ratingStatsHandler).Methods("GET")
+	r.HandleFunc("/rating", udrHandler).Methods("POST")
+	r.HandleFunc("/billing", billingStatsHandler).Methods("GET")
+	r.HandleFunc("/secret", secretHandler).Methods("GET")
+
+	log.Fatal(http.ListenAndServe(":4999", r))
+}

@@ -5,7 +5,6 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/BurntSushi/toml"
 	_ "github.com/denisenkom/go-mssqldb"
 )
 
@@ -17,8 +16,6 @@ Pwd = "Q@te$t#1"
 Database = "EngageIP_Revenue"
 `
 
-var connStr string
-
 // DBConfig contains the db connection information
 type DBConfig struct {
 	Server   string
@@ -28,26 +25,41 @@ type DBConfig struct {
 	Database string
 }
 
-type Controller struct {
-	Conf DBConfig
+type controller struct {
+	conf       *DBConfig
+	connString string
+	db         *sql.DB
 }
 
-// Conf contains the db connection information
-var Conf DBConfig
+// New to new a stats controller
+func New(dbc *DBConfig) *controller {
+	c := new(controller)
+	c.conf = dbc
+	c.connString = "server=" + c.conf.Server +
+		";port=" + strconv.Itoa(c.conf.Port) + ";" +
+		"user id=" + c.conf.UID + ";" +
+		"password=" + c.conf.Pwd + ";" +
+		"database=" + c.conf.Database + ";"
 
-func init() {
-	if _, err := toml.Decode(dbc, &Conf); err != nil {
+	db, err := sql.Open("sqlserver", c.connString)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	connStr := "server=" + Conf.Server + ";port=" + strconv.Itoa(Conf.Port) + ";" +
-		"user id=" + Conf.UID + ";" +
-		"password=" + Conf.Pwd + ";" +
-		"database=" + Conf.Database + ";"
+	c.db = db
 
-	if _, err := sql.Open("sqlserver", connStr); err != nil {
-		log.Fatal(err)
+	return c
+}
+
+func (c *controller) TearDown() {
+	if c.db != nil {
+		c.db.Close()
 	}
 }
 
-func (c *Controller)
+// func init() {
+// 	if _, err := toml.Decode(dbc, &Conf); err != nil {
+// 		log.Fatal(err)
+// 	}
+//
+// }
