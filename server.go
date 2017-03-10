@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -16,6 +16,23 @@ type httpStats struct {
 
 // ratingStatsHandler
 func ratingStatsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	testId := vars["testID"]
+	fmt.Println(testId)
+
+	// get the db configuration, hard-code to perf.conf
+	/*
+		var conf stats.DBConfig
+		if _, err := toml.DecodeFile("perf.conf", &conf); err != nil {
+			log.Fatal(err)
+		}
+
+		sc := stats.New(&conf)
+		defer sc.TearDown()
+
+		// HAN >>>
+		rating.QueryStats(testId, sc)
+	*/
 
 }
 
@@ -28,8 +45,8 @@ func secretHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("hello world!"))
 }
 
-// udrHandler
-// udrHandler returns a unique identifier after request is received
+// ratingRequestHandler
+// ratingRequestHandler returns a unique identifier after request is received
 // request format example:
 //{
 // 	"amount_field_index": 4,
@@ -47,7 +64,7 @@ func secretHandler(w http.ResponseWriter, r *http.Request) {
 // 		"value"
 // 	]
 // }
-func udrHandler(w http.ResponseWriter, r *http.Request) {
+func ratingTestRequestHandler(w http.ResponseWriter, r *http.Request) {
 	// Decode json body to rating.controller.testParams obj
 	var params rating.TestParams
 	//a, _ := ioutil.ReadAll(r.Body)
@@ -60,19 +77,29 @@ func udrHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, e := rating.StartProcess(&params); e != nil {
+	testId, e := rating.StartTest(&params)
+	if e != nil {
 		http.Error(w, e.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"testID": testId})
 }
 
-func main() {
-	r := mux.NewRouter()
-	// TODO: OPTIONS handler
-	r.HandleFunc("/rating", ratingStatsHandler).Methods("GET")
-	r.HandleFunc("/rating", udrHandler).Methods("POST")
+func AddV1Routes(r *mux.Router) {
+	r.HandleFunc("/rating/{testID}", ratingStatsHandler).Methods("GET")
+	r.HandleFunc("/rating", ratingTestRequestHandler).Methods("POST")
 	r.HandleFunc("/billing", billingStatsHandler).Methods("GET")
 	r.HandleFunc("/secret", secretHandler).Methods("GET")
+}
 
+/*
+func main() {
+	r := mux.NewRouter().StrictSlash(true)
+
+	// TODO: OPTIONS handler
+	AddV1Routes(router.PathPrefix("/v1").Subrouter())
 	log.Fatal(http.ListenAndServe(":4999", r))
 }
+*/

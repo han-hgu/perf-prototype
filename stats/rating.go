@@ -1,5 +1,7 @@
 package stats
 
-func FetchUDRRate(c *controller, filename string) (float64, finished bool) {
-	return 1sdfsfdsfsd
+/*
+func (c *controller, filename string) (float64, bool) {
+	return 1, true
 }
+*/
