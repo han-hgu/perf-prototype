@@ -17,8 +17,8 @@ type httpStats struct {
 // ratingStatsHandler
 func ratingStatsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	testId := vars["testID"]
-	fmt.Println(testId)
+	testID := vars["testID"]
+	fmt.Println(testID)
 
 	// get the db configuration, hard-code to perf.conf
 	/*
@@ -38,15 +38,15 @@ func ratingStatsHandler(w http.ResponseWriter, r *http.Request) {
 
 // billingStatsHandler
 func billingStatsHandler(w http.ResponseWriter, r *http.Request) {
-
 }
 
 func secretHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("hello world!"))
 }
 
-// ratingRequestHandler
-// ratingRequestHandler returns a unique identifier after request is received
+// ratingTestRequestHandler
+// ratingTestRequestHandler sets up a rating test and returns the test id for
+// future query
 // request format example:
 //{
 // 	"amount_field_index": 4,
@@ -77,20 +77,21 @@ func ratingTestRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	testId, e := rating.StartTest(&params)
+	testID, e := rating.StartTest(&params)
 	if e != nil {
 		http.Error(w, e.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"testID": testId})
+	json.NewEncoder(w).Encode(map[string]string{"testID": testID})
 }
 
+// AddV1Routes adds version 1 handlers
 func AddV1Routes(r *mux.Router) {
-	r.HandleFunc("/rating/{testID}", ratingStatsHandler).Methods("GET")
-	r.HandleFunc("/rating", ratingTestRequestHandler).Methods("POST")
-	r.HandleFunc("/billing", billingStatsHandler).Methods("GET")
+	r.HandleFunc("/rating/tests/{testID}", ratingStatsHandler).Methods("GET")
+	r.HandleFunc("/rating/tests", ratingTestRequestHandler).Methods("POST")
+	r.HandleFunc("/billing/tests", billingStatsHandler).Methods("GET")
 	r.HandleFunc("/secret", secretHandler).Methods("GET")
 }
 
