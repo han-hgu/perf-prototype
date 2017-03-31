@@ -1,12 +1,6 @@
 package main
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/perf-prototype/stats"
-)
-
+/*
 func main() {
 	defer stats.GetController().TearDown()
 
@@ -39,5 +33,5 @@ func main() {
 	//re := regexp.MustCompile("([0-9]+)*.([0-9]+)* UDRs/second")
 	//fmt.Println(re.FindString("14.5 UDRs/second"))
 
-	//rating.QueryStats("", sc)
 }
+*/

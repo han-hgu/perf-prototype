@@ -7,16 +7,19 @@ import (
 	"strconv"
 )
 
-// GetUDRRates collects the rates from the eventlog table
-// returns the rates collected up to this point, the number of files processed
-// and the next id you should use for the next query
-func (c *controller) GetUDRRates(filename string, lastEventID uint64) (updatedID uint64, filesProcessed uint, result []float64) {
+// GetRates collects the rates from the eventlog table
+// returns the rates collected up to now, the number of files processed and the
+// next id you should use for the next query
+func (c *Controller) GetRates(filename string, lastEventID uint64) (updatedID uint64, filesProcessed int, result []float64) {
 	updatedID = lastEventID
 	filesProcessed = 0
-	filesCompletedRxp := regexp.MustCompile("Done Processing File" + ".*" + filename)
-	InvalidRatesRxp := regexp.MustCompile("UDRs in 0.0 seconds")
-	RateRxp := regexp.MustCompile("([0-9]+)*.([0-9]+)* UDRs/second|([0-9]+)* UDRs/second")
-	RateValRxp := regexp.MustCompile("([0-9]+)*.([0-9]+)*")
+
+	var (
+		filesCompletedRxp = regexp.MustCompile("Done Processing File" + ".*" + filename)
+		InvalidRatesRxp   = regexp.MustCompile("UDRs in 0.0 seconds")
+		RateRxp           = regexp.MustCompile("([0-9]+)*.([0-9]+)* UDRs/second|([0-9]+)* UDRs/second")
+		RateValRxp        = regexp.MustCompile("([0-9]+)*.([0-9]+)*")
+	)
 
 	q := fmt.Sprintf("select id, result from "+
 		"eventlog where id > %v and "+

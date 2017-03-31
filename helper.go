@@ -1,4 +1,4 @@
-package rating
+package main
 
 import (
 	"crypto/rand"
@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/perf-prototype/perftest"
 )
 
 // newUUID generates a random UUID according to RFC 4122
@@ -26,12 +28,14 @@ func newUUID() (string, error) {
 
 // exists returns true if file path exists
 func exists(path string) error {
-	// TODO: there are other errors besides the file doesn't exist error
+	// TODO: there are other errors that could be returned not just file doesn't
+	// exist one
 	_, err := os.Stat(path)
 	return err
 }
 
-func createFile(t *TestParams) error {
+// createFile to create the UDR input files based on the testParams obj
+func createFile(t *perftest.RatingParams) error {
 	// check to see if the location exist, location specified must exist
 	if err := exists(t.DropLocation); err != nil {
 		return err

@@ -9,7 +9,7 @@ You need a Go development to build the executable. To install all dependencies, 
 
     go get ./...
 
-You can cross compile it using 
+You can cross compile it using
 `GOOS` and `GOARCH`
 
     GOOS=windows GOARCH=amd64 go build
@@ -19,18 +19,18 @@ You can cross compile it using
 
 ## Endpoints
 
-###Rating
+### Rating
 - **[<code>GET</code> tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/GET_tests.md)**
 - **[<code>GET</code> tests/:id](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/GET_tests_id.md)**
 - **[<code>POST</code> tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/POST_tests.md)**
 
-###Billing
+### Billing
 
 
-## FAQ ##
+## FAQ
 
 
-## Requirements ##
+## Requirements
 
 - Rating perf testing
 - Billing perf testing
@@ -46,8 +46,4 @@ You can cross compile it using
 [Beginner’s Guide]: http://hueniverse.com/oauth/
 [JSON]: http://json.org
 [quick tutorial]: http://www.webmonkey.com/2010/02/get_started_with_json/
-[Register your application]: http://500px.com/settings/applications
-[API Terms of Use]: https://github.com/500px/api-documentation/blob/master/basics/terms_of_use.md
-[See if the concepts used by the API are familiar to you]: https://github.com/500px/api-documentation#what-do-i-need-to-know-before-i-start-using-the-api
-[A good md reference page for api]:
-https://github.com/500px/api-documentation/blob/master/README.md
+[A good md reference page for api]: https://github.com/500px/api-documentation/blob/master/README.md
