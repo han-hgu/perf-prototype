@@ -1,6 +1,49 @@
 package main
 
 /*
+import (
+	"bufio"
+	"log"
+	"os"
+	"regexp"
+)
+
+func main() {
+	f, _ := os.Create("C:/tmp/sql2333.txt")
+	defer f.Close()
+
+	// open a file
+	if file, err := os.Open("C:/tmp/sql.txt"); err == nil {
+
+		// make sure it gets closed
+		defer file.Close()
+
+		// create a new scanner and read the file line by line
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			filesCompletedRxp := regexp.MustCompile("'.*'")
+			s := string(filesCompletedRxp.Find(scanner.Bytes()))
+			if len(s) > 0 {
+				log.Println(s[1 : len(s)-1])
+				f.WriteString("SELECT is_disabled FROM sys.indexes WHERE name = '" + s[1:len(s)-1] +
+					"'\n")
+			}
+		}
+
+		// check for errors
+		if err = scanner.Err(); err != nil {
+			log.Fatal(err)
+		}
+
+	} else {
+		log.Fatal(err)
+	}
+
+}
+*/
+
+// This is for generating chart
+/*
 func main() {
 	defer stats.GetController().TearDown()
 

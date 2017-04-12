@@ -12,14 +12,27 @@ type store struct {
 	info map[string]*TestInfo
 }
 
-func (s *store) add(uuid string, t *TestInfo) {
+func (s *store) add(uuid string, t *TestInfo) error {
+	if s.info == nil {
+		s.info = make(map[string]*TestInfo)
+	}
+
 	s.Lock()
 	defer s.Unlock()
-	s.info[uuid] = t
+	if _, ok := s.info[uuid]; !ok {
+		s.info[uuid] = t
+		return nil
+	}
+
+	return errors.New("test already exists")
 }
 
 // get testInfo from the store
 func (s *store) get(uuid string) (TestInfo, error) {
+	if s.info == nil {
+		return TestInfo{}, errors.New("test doesn't exist")
+	}
+
 	s.RLock()
 	defer s.RUnlock()
 	if _, ok := s.info[uuid]; !ok {
@@ -29,7 +42,10 @@ func (s *store) get(uuid string) (TestInfo, error) {
 	return *s.info[uuid], nil
 }
 
-func (s *store) update(uuid string, t TestInfo) error {
+func (s *store) update(uuid string, t *TestInfo) error {
+	if s.info == nil {
+		return errors.New("update non-existing test result")
+	}
 	s.Lock()
 	defer s.Unlock()
 
@@ -38,6 +54,6 @@ func (s *store) update(uuid string, t TestInfo) error {
 		return errors.New("update non-existing test result")
 	}
 
-	s.info[uuid] = &t
+	s.info[uuid] = t
 	return nil
 }

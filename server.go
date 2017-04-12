@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -60,8 +59,6 @@ func ratingTestRequestHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, e.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println("HAN >>>>", params)
 
 	testID, e := StartRateTest(&params)
 	if e != nil {

@@ -60,7 +60,7 @@ func TestGetInvalidTest(t *testing.T) {
 	dbc := stats.Controller{}
 	m := Create(&dbc)
 	if _, e := m.Get("InvalidTestID"); e == nil {
-		t.Errorf("Invalid error message received, expected %v, actual %v", errors.New("test doesn't exist"), e)
+		t.Errorf("Invalid error message received, expect %v, actual %v", errors.New("test doesn't exist"), e)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestGetValidTestWithWorkerRegistered(t *testing.T) {
 	rep := &re
 
 	if !reflect.DeepEqual(rep, ra) {
-		t.Errorf("Get test result: expected %v, actual %v", rep, ra)
+		t.Errorf("Get test result: expect %v, actual %v", rep, ra)
 	}
 }
 
@@ -113,6 +113,6 @@ func TestGetValidTestWithWorkerUnRegistered(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(tra, &rre) {
-		t.Errorf("Get test result: expected %v, actual %v", &rre, tra)
+		t.Errorf("Get test result: expect %v, actual %v", &rre, tra)
 	}
 }

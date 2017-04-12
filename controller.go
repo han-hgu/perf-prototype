@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/perf-prototype/perftest"
@@ -63,28 +62,6 @@ func StartRateTest(t *perftest.RatingParams) (id string, err error) {
 		}
 	}
 
-	// make a copy, don't bother tracking ownership
-	tp := *t
-	tr := new(perftest.RatingResult)
-	tr.TestResult = new(perftest.TestResult)
-
-	tinfo := perftest.TestInfo{
-		Params: &tp,
-		Result: tr,
-	}
-
-	tr.Done = false
-	tr.StartTime = time.Now()
-	tr.FilesCompleted = 0
-
-	if tp.StartingEventlogID == 0 {
-		tr.LastLog = c.sc.GetLastIDFromEventLog("")
-	} else {
-		tr.LastLog = uint64(tp.StartingEventlogID)
-	}
-
-	tr.AdditionalInfo = tp.AdditionalInfo
-
-	c.tm.Add(uid, &tinfo)
+	c.tm.Add(uid, t)
 	return uid, nil
 }
