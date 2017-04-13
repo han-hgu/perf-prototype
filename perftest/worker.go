@@ -32,7 +32,7 @@ func createWorker(tm *Manager, t Params) *worker {
 
 	var tinfo TestInfo
 	// create a testInfo obj
-	switch ptype := t.(type) {
+	switch t.(type) {
 	default:
 		panic("ERR: Unknown test parameter type while creating worker thread")
 
@@ -53,7 +53,7 @@ func createWorker(tm *Manager, t Params) *worker {
 	return w
 }
 
-func (w *worker) update() (testComplete bool) {
+func (w *worker) update() (testCompleted bool) {
 	return false
 	/*
 		switch tp := ti.Params.(type) {
@@ -92,28 +92,40 @@ func (w *worker) sendResult() {
 
 func (w *worker) run() {
 	timer := time.NewTimer(waitTime)
+	testID := w.ti.Params.GetTestID()
 	for {
 		select {
 		case <-timer.C:
 			if testCompleted := w.update(); testCompleted {
 				timer.Stop()
-				w.tm.s.add(w.ti.Params.GetTestID(), w.ti)
 
-				// Now that the test result is published to the
-				// store, terminate
-				return
+				// if there are goroutines visiting this testID, do nothing,
+				// worker can't be terminated at this state
+				nvp, ok := w.tm.visitorTracker[testID]
+				if !ok {
+					panic("tm.Add() should be called before run()")
+				}
+
+				// attempt to shutdown if 0 visitor, check-lock-check pattern
+				if nvp.get() == 0 {
+					w.tm.workerPoolLock.Lock()
+					if nvp.get() == 0 {
+						// it is possible the worker is not registered with
+						// the workerPool yet and this will be a no-op
+						delete(w.tm.workerPool, testID)
+						delete(w.tm.visitorTracker, testID)
+						w.tm.s.add(testID, w.ti)
+						w.tm.workerPoolLock.Unlock()
+						return
+					}
+					w.tm.workerPoolLock.Unlock()
+				}
 			}
 			timer.Reset(waitTime)
 		case <-w.Request:
-			if testCompleted := w.update(); testCompleted {
-				timer.Stop()
-				w.sendResult()
-				w.tm.s.add(w.ti.Params.GetTestID(), w.ti)
-
-				// Now that the test result is published to the
-				// store, terminate
-				return
-			}
+			// design decision to only do the worker cleanup in the above timer
+			// firing logic
+			w.update()
 			w.sendResult()
 			timer.Reset(waitTime)
 		}

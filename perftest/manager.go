@@ -1,6 +1,7 @@
 package perftest
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -106,8 +107,14 @@ type Manager struct {
 	db *stats.Controller
 	s  *store
 
-	sync.RWMutex
-	workerPool map[string]testTracker
+	// NOTE: Only worker is allowed to create/delete an entry here
+	workerPoolLock sync.RWMutex
+	workerPool     map[string]*worker
+
+	// To track how many http handler goroutines are visiting a specific
+	// test. It doesn't need mutex protection as the only one to create/delete
+	// a map entry is the worker if test id is valid; and value is atomic
+	visitorTracker map[string]*atomicCounter
 }
 
 // Create a new Manager
@@ -123,41 +130,35 @@ func Create(dbc *stats.Controller) *Manager {
 // testInfo to the worker, the worker is responsible until
 // the test is completed
 func (tm *Manager) Add(testID string, t Params) {
+	// vistorTracker entry should initialize before the worker creation
+	var count int64
+	ac := atomicCounter(count)
+	tm.visitorTracker[testID] = &ac
+
 	w := createWorker(tm, t)
+	// add the work thread before the run but not release the lock until it Gets
+	// the first response back from the worker
 	go w.run()
-	w.Request <- struct{}{}
 }
 
 // Get the test result using testID
 func (tm *Manager) Get(testID string) (Result, error) {
+	// get it first from the store
+	if ti, e := tm.s.get(testID); e == nil {
+		return ti.Result, nil
+	}
+
+	// only place to add an entry is in the worker goroutine, if entry doesn't
+	// exist either goroutine doesn't exist or it is not fully up for service
+	// yet
+	nvp, ok := tm.visitorTracker[testID]
+	if !ok {
+		return nil, errors.New("test doesn't exist")
+	}
+
+	nvp.increment()
+
 	var r Result
-
-	ti, e := tm.s.get(testID)
-	if e != nil {
-		return nil, e
-	}
-
-	if ti.w != nil {
-		ti.w.Request <- struct{}{}
-		r = <-ti.w.TestResult
-		/*
-			if r.GetResult().Done {
-				// shutting down the worker syncing process
-				ti.w.Exit <- struct{}{}
-				// Get the last result, don't care about the value just for
-				// synchronization purpose since worker will send the final result
-				// and be blocked by the unbuffered channel, don't make the channel
-				// unbuffered since it is possible the worker is doing cleanup and
-				// server receives another
-				<-ti.w.TestResult
-				// set the worker to null, no race condition with the check in line
-				// 99 since they are always the same thread
-				ti.w = nil
-			}
-		*/
-	} else { // worker is not registered(results loaded from db) or deregistered
-		r = ti.Result
-	}
-
 	return r, nil
+
 }
