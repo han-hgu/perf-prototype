@@ -50,6 +50,7 @@ func StartRateTest(t *perftest.RatingParams) (id string, err error) {
 	if e != nil {
 		return "", errors.New("fail to generate test ID")
 	}
+	t.TestID = uid
 
 	if t.UseExistingFile {
 

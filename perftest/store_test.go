@@ -36,13 +36,21 @@ func TestStoreAddSameTests(t *testing.T) {
 	}
 }
 
-func TestStoreGetNonExistTest(t *testing.T) {
+func TestStoreGetTestFromNilStore(t *testing.T) {
 	setup()
 	if _, e := s.get("non-exisiting"); e == nil {
 		t.Error("Error received if if getting an non-existing testID")
 	}
-
 }
+
+func TestStoreGetNonExistTestFromNonNilStore(t *testing.T) {
+	setup()
+	s.info = make(map[string]*TestInfo)
+	if _, e := s.get("non-exisiting"); e == nil {
+		t.Error("Error received if if getting an non-existing testID")
+	}
+}
+
 func TestStoreGetTest(t *testing.T) {
 	setup()
 

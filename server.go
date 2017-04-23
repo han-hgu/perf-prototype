@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -49,6 +50,7 @@ func billingStatsHandler(w http.ResponseWriter, r *http.Request) {
 // ratingTestRequestHandler sets up asrrsssss rating test and returns the test id for
 // future query
 func ratingTestRequestHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("HAN >>>> ADD")
 	// Decode json body to rating.controller.testParams obj
 	var params perftest.RatingParams
 	//a, _ := ioutil.ReadAll(r.Body)

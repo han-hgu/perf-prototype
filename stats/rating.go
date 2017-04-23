@@ -1,5 +1,46 @@
 package stats
 
+import (
+	"fmt"
+	"log"
+	"regexp"
+)
+
+// numOfFileProcessed returns the number of UDR files shown completed in the
+// eventlog between eventlog ID "firstID" and "lastID"
+func (c *Controller) numOfFileProcessed(filename string, firstID, lastID uint64) (filesProcessed uint32) {
+	filesCompletedRxp := regexp.MustCompile("Done Processing File" + ".*" + filename)
+	q := fmt.Sprintf("select id, result from "+
+		"eventlog where id > %v and id <= %v and "+
+		"(module = 'UDR Rating' or module = 'UDRRatingEngine') order by id", firstID, lastID)
+
+	rows, err := c.db.Query(q)
+	if err != nil {
+		log.Fatalf("ERR: Stats controller generates an error getting number of files: %v", err)
+	}
+
+	var id uint64
+	var row string
+	defer rows.Close()
+	for rows.Next() {
+		rowErr := rows.Scan(&id, &row)
+		if rowErr != nil {
+			log.Fatalf("ERR: Stats controller generates an error while scanning a row: %v", err)
+		}
+
+		if filesCompletedRxp.MatchString(row) {
+			filesProcessed++
+		}
+	}
+
+	err = rows.Err()
+	if err != nil {
+		log.Fatalf("WARNING: Stats controller generates an error: %v", err)
+	}
+
+	return filesProcessed
+}
+
 // GetRates collects the rates from the eventlog table
 // returns the rates collected up to now, the number of files processed and the
 // next id you should use for the next query

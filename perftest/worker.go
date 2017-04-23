@@ -1,6 +1,7 @@
 package perftest
 
 import (
+	"log"
 	"time"
 )
 
@@ -13,21 +14,28 @@ const (
 	BILLING
 )
 
-const waitTime time.Duration = 1 * time.Second
+var waitTime = 10 * time.Second
 
 // Worker for stats handling and background sync
 type worker struct {
-	tt       testType
-	tm       *Manager
-	ti       *TestInfo
-	Request  chan struct{} // request for test info, ingress
-	Response chan Result   // response from worker for test info
+	tt          testType
+	tm          *Manager
+	ti          *TestInfo
+	Request     chan struct{} // request for test info, ingress
+	Response    chan Result   // response from worker for test info
+	Exit        chan struct{}
+	dbIDTracker *DBIDTracker
 }
 
 func createWorker(tm *Manager, t Params) *worker {
 	w := new(worker)
 	w.Request = make(chan struct{})
 	w.Response = make(chan Result)
+	w.Exit = make(chan struct{})
+	w.dbIDTracker = new(DBIDTracker)
+	if e := tm.db.UpdateBaselineIDs(w.dbIDTracker); e != nil {
+		log.Fatalf("ERR: update failed, %v", e)
+	}
 	w.tm = tm
 
 	var tinfo TestInfo
@@ -53,8 +61,23 @@ func createWorker(tm *Manager, t Params) *worker {
 	return w
 }
 
-func (w *worker) update() (testCompleted bool) {
-	return false
+// if the test is completed, update the store too
+func (w *worker) update() {
+	if w.ti.Result.GetResult().Done {
+		w.tm.s.add(w.ti.Params.GetTestID(), w.ti)
+		return
+	}
+
+	switch w.tt {
+	case RATING:
+		if e := w.tm.db.UpdateRatingResult(w.ti, w.dbIDTracker); e != nil {
+			log.Fatalf("Worker error updating rating results, %v", e)
+		}
+
+	default:
+	}
+
+	return
 	/*
 		switch tp := ti.Params.(type) {
 		default:
@@ -92,42 +115,19 @@ func (w *worker) sendResult() {
 
 func (w *worker) run() {
 	timer := time.NewTimer(waitTime)
-	testID := w.ti.Params.GetTestID()
 	for {
 		select {
 		case <-timer.C:
-			if testCompleted := w.update(); testCompleted {
-				timer.Stop()
-
-				// if there are goroutines visiting this testID, do nothing,
-				// worker can't be terminated at this state
-				nvp, ok := w.tm.visitorTracker[testID]
-				if !ok {
-					panic("tm.Add() should be called before run()")
-				}
-
-				// attempt to shutdown if 0 visitor, check-lock-check pattern
-				if nvp.get() == 0 {
-					w.tm.workerPoolLock.Lock()
-					if nvp.get() == 0 {
-						// it is possible the worker is not registered with
-						// the workerPool yet and this will be a no-op
-						delete(w.tm.workerPool, testID)
-						delete(w.tm.visitorTracker, testID)
-						w.tm.s.add(testID, w.ti)
-						w.tm.workerPoolLock.Unlock()
-						return
-					}
-					w.tm.workerPoolLock.Unlock()
-				}
-			}
+			w.update()
 			timer.Reset(waitTime)
 		case <-w.Request:
-			// design decision to only do the worker cleanup in the above timer
-			// firing logic
-			w.update()
+			// choose not to update
+			//w.update()
 			w.sendResult()
-			timer.Reset(waitTime)
+			//timer.Reset(waitTime)
+		case <-w.Exit:
+			timer.Stop()
+			return
 		}
 	}
 }

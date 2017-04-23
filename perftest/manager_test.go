@@ -5,36 +5,21 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/perf-prototype/stats"
 )
 
-func TestGetInfo(t *testing.T) {
-	var rp RatingParams
-	rp.AdditionalInfo = map[string]string{"foo": "v1", "bar": "v2"}
-	if !reflect.DeepEqual(rp.AdditionalInfo, rp.GetInfo()) {
-		t.Errorf("GetInfo() returns correct value")
-	}
+type mockStatsController struct {
 }
 
-func TestGetResult(t *testing.T) {
-	rr := RatingResult{MinRate: 0,
-		AvgRate:        0,
-		FilesCompleted: 0}
+func (*mockStatsController) UpdateRatingResult(t *TestInfo, dbIDTracker *DBIDTracker) error {
+	return nil
+}
 
-	tr := TestResult{StartTime: time.Now(),
-		LastLog: 0,
-		Done:    false}
-
-	rr.TestResult = &tr
-
-	if rr.GetResult() != &tr {
-		t.Error("GetResult() returns the correct value")
-	}
+func (*mockStatsController) UpdateBaselineIDs(dbIDTracker *DBIDTracker) error {
+	return nil
 }
 
 func TestCreate(t *testing.T) {
-	dbc := stats.Controller{}
+	dbc := mockStatsController{}
 	m := Create(&dbc)
 
 	if m.db != &dbc {
@@ -43,21 +28,25 @@ func TestCreate(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	dbc := stats.Controller{}
+	dbc := mockStatsController{}
 	m := Create(&dbc)
-	ti := TestInfo{}
-	m.Add("abc", &ti)
-	ti, _ = m.s.get("abc")
+	tp := RatingParams{}
+	m.Add("abc", &tp)
 
-	if ti.w == nil {
-		t.Error("Worker created")
+	m.RLock()
+	defer m.RUnlock()
+	w, ok := m.workerMap["abc"]
+	if !ok {
+		t.Error("workerMap updated")
 	}
 
-	ti.w.Exit <- struct{}{}
+	if w.ti.Params.(*RatingParams) != &tp {
+		t.Error("worker parameter set successfully")
+	}
 }
 
 func TestGetInvalidTest(t *testing.T) {
-	dbc := stats.Controller{}
+	dbc := mockStatsController{}
 	m := Create(&dbc)
 	if _, e := m.Get("InvalidTestID"); e == nil {
 		t.Errorf("Invalid error message received, expect %v, actual %v", errors.New("test doesn't exist"), e)
@@ -65,33 +54,34 @@ func TestGetInvalidTest(t *testing.T) {
 }
 
 func TestGetValidTestWithWorkerRegistered(t *testing.T) {
-	re := RatingResult{
-		MinRate:        2,
-		AvgRate:        1,
-		FilesCompleted: 3}
+	ai := map[string]string{
+		"p1": "1",
+		"p2": "2",
+		"p3": "3",
+	}
 
-	tr := TestResult{StartTime: time.Now(),
-		LastLog: 0,
-		Done:    true}
+	tp := TestParams{TestID: "abc"}
+	tp.AdditionalInfo = ai
 
-	re.TestResult = &tr
+	rp := RatingParams{}
+	rp.TestParams = tp
 
-	dbc := stats.Controller{}
+	dbc := mockStatsController{}
 	m := Create(&dbc)
-	ti := TestInfo{}
-	ti.Result = &re
-	m.Add("abc", &ti)
+	m.Add("abc", &rp)
 
-	ra, _ := m.Get("abc")
-	rep := &re
+	r, e := m.Get("abc")
+	if e != nil {
+		t.Error("Worker returns the test result")
+	}
 
-	if !reflect.DeepEqual(rep, ra) {
-		t.Errorf("Get test result: expect %v, actual %v", rep, ra)
+	if !reflect.DeepEqual(r.GetResult().AdditionalInfo, ai) {
+		t.Error("Worker returns the correct test result")
 	}
 }
 
 func TestGetValidTestWithWorkerUnRegistered(t *testing.T) {
-	dbc := stats.Controller{}
+	dbc := mockStatsController{}
 	m := Create(&dbc)
 
 	rre := RatingResult{MinRate: 1,
@@ -99,10 +89,9 @@ func TestGetValidTestWithWorkerUnRegistered(t *testing.T) {
 		FilesCompleted: 5}
 
 	tre := TestResult{StartTime: time.Now(),
-		LastLog: 0,
-		Done:    false}
+		Done: false}
 
-	rre.TestResult = &tre
+	rre.TestResult = tre
 	ti := TestInfo{}
 	ti.Result = &rre
 

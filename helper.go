@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -36,14 +37,18 @@ func exists(path string) error {
 
 // createFile to create the UDR input files based on the testParams obj
 func createFile(t *perftest.RatingParams) error {
+	if len(t.RawFields) == 0 {
+		return errors.New("Raw fields cannot be empty")
+	}
+
 	// check to see if the location exist, location specified must exist
 	if err := exists(t.DropLocation); err != nil {
 		return err
 	}
 
 	var filename string
-	for i := 0; i < t.NumOfFiles; i++ {
-		filename = t.DropLocation + "/" + t.FilenamePrefix + "-" + strconv.Itoa(i) + ".csv"
+	for i := uint32(0); i < t.NumOfFiles; i++ {
+		filename = t.DropLocation + "/" + t.FilenamePrefix + "-" + strconv.FormatUint(uint64(i), 10) + ".csv"
 
 		fo, err := os.Create(filename)
 		defer func() {
@@ -64,6 +69,12 @@ func createFile(t *perftest.RatingParams) error {
 
 			// replace the timestamp
 			t.RawFields[t.TimpstampFieldIndex] = tns
+			// replace the uniqueness identifier
+			var err error
+			t.RawFields[0], err = newUUID()
+			if err != nil {
+				panic(err)
+			}
 			fo.WriteString(strings.Join(t.RawFields, ",") + "\n")
 		}
 	}
