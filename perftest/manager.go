@@ -5,11 +5,9 @@ import (
 	"sync"
 )
 
-// Manager interacts with the stats collector and stores all
-// test information
+// Manager manages workers and has a central store for test info
 type Manager struct {
-	db iController
-	s  *store
+	s *store
 
 	// Even mutex protected, mostly read lock
 	sync.RWMutex
@@ -17,10 +15,9 @@ type Manager struct {
 }
 
 // Create a new Manager
-func Create(dbc iController) *Manager {
+func Create() *Manager {
 	tm := new(Manager)
 	tm.s = new(store)
-	tm.db = dbc
 	tm.workerMap = make(map[string]*worker)
 
 	return tm

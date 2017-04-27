@@ -6,6 +6,7 @@ import "time"
 type Params interface {
 	GetInfo() map[string]string
 	GetTestID() string
+	GetController() iController
 }
 
 // Result interface to abstract out results
@@ -19,10 +20,21 @@ type TestInfo struct {
 	Result Result
 }
 
+// DBConf for database connection information
+type DBConf struct {
+	Server   string `json:"ip"`
+	Port     int    `json:"port"`
+	Database string `json:"db_name"`
+	UID      string `json:"uid"`
+	Pwd      string `json:"password"`
+}
+
 // TestParams to hold common test parameters for all test types
 type TestParams struct {
 	TestID         string            `json:"-"`
+	DBConf         DBConf            `json:"db_config"`
 	AdditionalInfo map[string]string `json:"additional_info"`
+	DbController   iController       `json:"-"`
 }
 
 // DBIDTracker keeps track of the last database table IDs examined
@@ -42,16 +54,16 @@ type DBIDTracker struct {
 // RatingParams to hold the testing parameters
 type RatingParams struct {
 	TestParams
-	AmtFieldIndex          int           `json:"amount_field_index"`
-	TimpstampFieldIndex    int           `json:"timestamp_field_index"`
-	NumOfFiles             uint32        `json:"number_of_files"`
-	NumRecordsPerFile      int           `json:"number_of_records_per_file"`
-	RawFields              []string      `json:"raw_fields"`
-	UseExistingFile        bool          `json:"use_existing_file"`
-	DropLocation           string        `json:"drop_location"`
-	FilenamePrefix         string        `json:"filename_prefix"`
-	DataCollectionInterval time.Duration `json:"data_collection_interval"`
-	DBIDTracker            *DBIDTracker  `json:"-"`
+	AmtFieldIndex       int           `json:"amount_field_index"`
+	TimpstampFieldIndex int           `json:"timestamp_field_index"`
+	NumOfFiles          uint32        `json:"number_of_files"`
+	NumRecordsPerFile   int           `json:"number_of_records_per_file"`
+	RawFields           []string      `json:"raw_fields"`
+	UseExistingFile     bool          `json:"use_existing_file"`
+	DropLocation        string        `json:"drop_location"`
+	FilenamePrefix      string        `json:"filename_prefix"`
+	CollectionInterval  time.Duration `json:"collection_interval"`
+	DBIDTracker         *DBIDTracker  `json:"-"`
 }
 
 // GetInfo to integrate RatingParams to Params interface
@@ -62,6 +74,11 @@ func (rp *RatingParams) GetInfo() map[string]string {
 // GetTestID returns the test ID
 func (rp *RatingParams) GetTestID() string {
 	return rp.TestID
+}
+
+// GetController get the iController from the params
+func (rp *RatingParams) GetController() iController {
+	return rp.DbController
 }
 
 // TestResult to store generic results

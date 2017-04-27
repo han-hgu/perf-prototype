@@ -5,14 +5,12 @@ import (
 	"log"
 	"sync"
 
-	"github.com/BurntSushi/toml"
 	"github.com/perf-prototype/perftest"
 	"github.com/perf-prototype/stats"
 )
 
 type controller struct {
 	tm *perftest.Manager
-	sc *stats.Controller
 }
 
 var c *controller
@@ -22,15 +20,7 @@ var once sync.Once
 func initController() {
 	once.Do(func() {
 		c = &controller{}
-
-		var conf stats.DBConfig
-		if _, err := toml.DecodeFile("perf.conf", &conf); err != nil {
-			log.Fatal(err)
-		}
-
-		sc := stats.CreateController(&conf)
-		c.sc = sc
-		c.tm = perftest.Create(sc)
+		c.tm = perftest.Create()
 	})
 }
 
@@ -41,8 +31,8 @@ func GetResult(testID string) (perftest.Result, error) {
 	return c.tm.Get(testID)
 }
 
-// StartRateTest starts a rating test
-func StartRateTest(t *perftest.RatingParams) (id string, err error) {
+// StartRatingTest starts a rating test
+func StartRatingTest(t *perftest.RatingParams) (id string, err error) {
 	initController()
 
 	// allocate uuid for the test run
@@ -52,9 +42,23 @@ func StartRateTest(t *perftest.RatingParams) (id string, err error) {
 	}
 	t.TestID = uid
 
-	if t.UseExistingFile {
+	// for rating test, controller creates and assigns the stats controller to t;
+	// Perftest package should be flexible and only deal
+	// with iController interface for future extensibility
+	var statsDBConf stats.DBConfig
+	statsDBConf.Server = t.DBConf.Server
+	statsDBConf.Port = t.DBConf.Port
+	statsDBConf.Database = t.DBConf.Database
+	statsDBConf.UID = t.DBConf.UID
+	statsDBConf.Pwd = t.DBConf.Pwd
 
-	} else {
+	sc := stats.CreateController(&statsDBConf)
+	if sc == nil {
+		log.Fatal("ERR: Stats controller not created")
+	}
+	t.TestParams.DbController = sc
+
+	if !t.UseExistingFile {
 		if t.FilenamePrefix == "" {
 			t.FilenamePrefix = uid
 		}

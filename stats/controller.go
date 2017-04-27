@@ -10,6 +10,9 @@ import (
 
 	// mssql driver
 	_ "github.com/denisenkom/go-mssqldb"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+
 	"github.com/perf-prototype/perftest"
 )
 
@@ -34,23 +37,19 @@ var once sync.Once
 
 // UpdateRatingResult updates the testInfo and database id tracker
 func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perftest.DBIDTracker) error {
-
-	fmt.Println("HAN >>>> before")
-	fmt.Println("EventLogLastProcessed:", dbIDTracker.EventLogLastProcessed)
-	fmt.Println("EventLogCurrent:", dbIDTracker.EventLogCurrent)
-	fmt.Println("EventlogStarted:", dbIDTracker.EventlogStarted)
-	fmt.Println("UDRLastProcessed:", dbIDTracker.UDRLastProcessed)
-	fmt.Println("UDRCurrent:", dbIDTracker.UDRCurrent)
-	fmt.Println("UDRStarted:", dbIDTracker.UDRStarted)
-	fmt.Println("UDRExceptionLastProcessed:", dbIDTracker.UDRExceptionLastProcessed)
-	fmt.Println("UDRExceptionCurrent:", dbIDTracker.UDRExceptionCurrent)
-	fmt.Println("UDRExceptionStarted:", dbIDTracker.UDRExceptionStarted)
-	fmt.Println("")
-
+	start := time.Now()
 	dbIDTracker.EventLogCurrent = c.getLastEventLogID()
 	dbIDTracker.UDRCurrent = c.getLastUdrID()
 	dbIDTracker.UDRExceptionCurrent = c.getLastUdrExceptionID()
-	timeNow := time.Now()
+
+	fmt.Println("HAN >>>>")
+	fmt.Println("EventLogLastProcessed:", dbIDTracker.EventLogLastProcessed)
+	fmt.Println("EventLogCurrent:", dbIDTracker.EventLogCurrent)
+	fmt.Println("UDRLastProcessed:", dbIDTracker.UDRLastProcessed)
+	fmt.Println("UDRCurrent:", dbIDTracker.UDRCurrent)
+	fmt.Println("UDRExceptionLastProcessed:", dbIDTracker.UDRExceptionLastProcessed)
+	fmt.Println("UDRExceptionCurrent:", dbIDTracker.UDRExceptionCurrent)
+	fmt.Println("")
 
 	rp, ok := ti.Params.(*perftest.RatingParams)
 	if !ok {
@@ -59,79 +58,73 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 
 	rr, ok := ti.Result.(*perftest.RatingResult)
 	if !ok {
-		log.Fatal("ERR: Failed to cast ti.Params to *RatingParams")
+		log.Fatal("ERR: Failed to cast ti.Result to *RatingResult")
 	}
 
 	var (
 		udrC                   uint64
 		udrExceptionC          uint64
+		rates                  []float32
 		numberOfFilesProcessed uint32
 	)
 
 	var wg sync.WaitGroup
+	// UDRs
+	wg.Add(1)
+	go c.getUDRCount(&wg, dbIDTracker.UDRLastProcessed, dbIDTracker.UDRCurrent, &udrC)
 
-	// udrC for UDR
+	// UDRExceptions
+	wg.Add(1)
+	go c.getUDRExceptionCount(&wg, dbIDTracker.UDRLastProcessed, dbIDTracker.UDRCurrent, &udrExceptionC)
+
+	// rates
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		q := fmt.Sprintf("select count(*) from udr where id > %v and id <= %v", dbIDTracker.UDRLastProcessed, dbIDTracker.UDRCurrent)
-		udrC = c.getRecordCount(q)
-		fmt.Println("HAN >>>> udrC: ", udrC)
+		rates = c.getRatesFromEventLog(dbIDTracker.EventLogLastProcessed, dbIDTracker.EventLogCurrent)
 	}()
 
-	// udrExceptionC for UDR Exception
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		q := fmt.Sprintf("select count(*) from udrException where id > %v and id <= %v", dbIDTracker.UDRExceptionLastProcessed, dbIDTracker.UDRExceptionCurrent)
-		udrExceptionC = c.getRecordCount(q)
-		fmt.Println("HAN >>>> udrExceptionC: ", udrExceptionC)
-	}()
-
-	// numberOfFilesProcessed for Number of rating files processed
+	// Number of rating files processed
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		numberOfFilesProcessed = c.numOfFileProcessed(rp.FilenamePrefix, dbIDTracker.EventLogLastProcessed, dbIDTracker.EventLogCurrent)
-		fmt.Println("HAN >>>> numberOfFilesProcessed: ", numberOfFilesProcessed)
 	}()
 
 	wg.Wait()
 
-	duration := timeNow.Sub(dbIDTracker.TimePrevious)
+	// HAN >>>>
+	mem, _ := mem.VirtualMemory()
+	cpu, _ := cpu.Percent(0, false)
+	fmt.Printf("MemUsedPercent:%f%%\n", mem.UsedPercent)
+	fmt.Printf("CPUPercent:%f%%\n", cpu[0])
+
 	rr.UDRProcessed += udrC
 	rr.UDRExceptionProcessed += udrExceptionC
-	rate := float32(udrC) / float32(duration.Seconds())
-	fmt.Println("HAN >>>> duration:", duration)
-
 	rr.FilesCompleted += numberOfFilesProcessed
+	fmt.Println("HAN >>> rr.UDRProcessed", rr.UDRProcessed)
+	fmt.Println("HAN >>> rr.UDRExceptionProcessed", rr.UDRExceptionProcessed)
+	fmt.Println("HAN >>> rr.FilesCompleted", rr.FilesCompleted)
 	if rr.FilesCompleted == rp.NumOfFiles {
 		rr.Done = true
 	}
 
-	if rate < rr.MinRate {
-		rr.MinRate = rate
-	}
+	for _, v := range rates {
+		if v < rr.MinRate && v != 0 {
+			rr.MinRate = v
+		}
 
-	rr.AvgRate = (float32(rr.AvgRate)*float32(len(rr.Rates)) + rate) / float32((len(rr.Rates) + 1))
-	rr.Rates = append(rr.Rates, rate)
+		rr.Rates = append(rr.Rates, v)
+	}
 
 	dbIDTracker.EventLogLastProcessed = dbIDTracker.EventLogCurrent
 	dbIDTracker.UDRLastProcessed = dbIDTracker.UDRCurrent
 	dbIDTracker.UDRExceptionLastProcessed = dbIDTracker.UDRExceptionCurrent
-	dbIDTracker.TimePrevious = timeNow
-
-	fmt.Println("HAN >>> after")
-	fmt.Println("EventLogLastProcessed:", dbIDTracker.EventLogLastProcessed)
-	fmt.Println("EventLogCurrent:", dbIDTracker.EventLogCurrent)
-	fmt.Println("EventlogStarted:", dbIDTracker.EventlogStarted)
-	fmt.Println("UDRLastProcessed:", dbIDTracker.UDRLastProcessed)
-	fmt.Println("UDRCurrent:", dbIDTracker.UDRCurrent)
-	fmt.Println("UDRStarted:", dbIDTracker.UDRStarted)
-	fmt.Println("UDRExceptionLastProcessed:", dbIDTracker.UDRExceptionLastProcessed)
-	fmt.Println("UDRExceptionCurrent:", dbIDTracker.UDRExceptionCurrent)
-	fmt.Println("UDRExceptionStarted:", dbIDTracker.UDRExceptionStarted)
-
+	dbIDTracker.TimePrevious = start
+	elapsed := time.Since(start)
+	fmt.Println("HAN >>>> Time elapsed:", elapsed)
+	fmt.Println("")
+	fmt.Println("")
 	return nil
 }
 
@@ -150,7 +143,6 @@ func (c *Controller) UpdateBaselineIDs(dbIDTracker *perftest.DBIDTracker) error 
 	dbIDTracker.UDRCurrent = dbIDTracker.UDRStarted
 	dbIDTracker.UDRExceptionCurrent = dbIDTracker.UDRExceptionStarted
 
-	fmt.Println("HAN >>> baseline:", dbIDTracker)
 	return nil
 }
 

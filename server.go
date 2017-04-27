@@ -62,7 +62,9 @@ func ratingTestRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	testID, e := StartRateTest(&params)
+	fmt.Println("HAN >>> param:", params)
+
+	testID, e := StartRatingTest(&params)
 	if e != nil {
 		http.Error(w, e.Error(), http.StatusInternalServerError)
 		return

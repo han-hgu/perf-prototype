@@ -19,18 +19,18 @@ func (*mockStatsController) UpdateBaselineIDs(dbIDTracker *DBIDTracker) error {
 }
 
 func TestCreate(t *testing.T) {
-	dbc := mockStatsController{}
-	m := Create(&dbc)
+	m := Create()
 
-	if m.db != &dbc {
-		t.Error("Create() creates a manager with correct db controller")
+	if len(m.s.info) != 0 {
+		t.Error("Create() creates a manager")
 	}
 }
 
 func TestAdd(t *testing.T) {
-	dbc := mockStatsController{}
-	m := Create(&dbc)
+	sc := mockStatsController{}
+	m := Create()
 	tp := RatingParams{}
+	tp.DbController = &sc
 	m.Add("abc", &tp)
 
 	m.RLock()
@@ -46,8 +46,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestGetInvalidTest(t *testing.T) {
-	dbc := mockStatsController{}
-	m := Create(&dbc)
+	m := Create()
 	if _, e := m.Get("InvalidTestID"); e == nil {
 		t.Errorf("Invalid error message received, expect %v, actual %v", errors.New("test doesn't exist"), e)
 	}
@@ -63,11 +62,12 @@ func TestGetValidTestWithWorkerRegistered(t *testing.T) {
 	tp := TestParams{TestID: "abc"}
 	tp.AdditionalInfo = ai
 
+	sc := mockStatsController{}
 	rp := RatingParams{}
 	rp.TestParams = tp
+	rp.DbController = &sc
 
-	dbc := mockStatsController{}
-	m := Create(&dbc)
+	m := Create()
 	m.Add("abc", &rp)
 
 	r, e := m.Get("abc")
@@ -81,8 +81,7 @@ func TestGetValidTestWithWorkerRegistered(t *testing.T) {
 }
 
 func TestGetValidTestWithWorkerUnRegistered(t *testing.T) {
-	dbc := mockStatsController{}
-	m := Create(&dbc)
+	m := Create()
 
 	rre := RatingResult{MinRate: 1,
 		AvgRate:        3,

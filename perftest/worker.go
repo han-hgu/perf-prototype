@@ -2,6 +2,8 @@ package perftest
 
 import (
 	"log"
+	"math"
+	"sync"
 	"time"
 )
 
@@ -25,6 +27,8 @@ type worker struct {
 	Response    chan Result   // response from worker for test info
 	Exit        chan struct{}
 	dbIDTracker *DBIDTracker
+	once        sync.Once
+	sc          iController
 }
 
 func createWorker(tm *Manager, t Params) *worker {
@@ -33,10 +37,18 @@ func createWorker(tm *Manager, t Params) *worker {
 	w.Response = make(chan Result)
 	w.Exit = make(chan struct{})
 	w.dbIDTracker = new(DBIDTracker)
-	if e := tm.db.UpdateBaselineIDs(w.dbIDTracker); e != nil {
+	w.sc = t.GetController()
+	if w.sc == nil {
+		panic("ERR: Cannot create worker with nil controller")
+	}
+
+	if e := w.sc.UpdateBaselineIDs(w.dbIDTracker); e != nil {
 		log.Fatalf("ERR: update failed, %v", e)
 	}
 	w.tm = tm
+
+	// controller knows what actual db controller to use and should create the
+	// instance already, all worker knows is the interface
 
 	var tinfo TestInfo
 	// create a testInfo obj
@@ -52,6 +64,7 @@ func createWorker(tm *Manager, t Params) *worker {
 		rr.StartTime = time.Now()
 		rr.FilesCompleted = 0
 		rr.AdditionalInfo = t.GetInfo()
+		rr.MinRate = math.MaxFloat32
 
 		tinfo.Params = t
 		tinfo.Result = rr
@@ -64,48 +77,19 @@ func createWorker(tm *Manager, t Params) *worker {
 // if the test is completed, update the store too
 func (w *worker) update() {
 	if w.ti.Result.GetResult().Done {
-		w.tm.s.add(w.ti.Params.GetTestID(), w.ti)
 		return
 	}
 
 	switch w.tt {
 	case RATING:
-		if e := w.tm.db.UpdateRatingResult(w.ti, w.dbIDTracker); e != nil {
-			log.Fatalf("Worker error updating rating results, %v", e)
+		if e := w.sc.UpdateRatingResult(w.ti, w.dbIDTracker); e != nil {
+			log.Fatalf("ERR: Worker failed updating rating results, %v", e)
 		}
 
 	default:
 	}
 
 	return
-	/*
-		switch tp := ti.Params.(type) {
-		default:
-			return
-		case *RatingParams:
-			// TODO: panic if cast fails
-			tr, ok := ti.Result.(*RatingResult)
-
-			if tr.Done {
-				return
-			}
-
-			// always use the store to do the update
-			// make a copy of testInfo to point to this new result
-			trn := *tr
-			upid, fprocessed, r := tm.db.GetRates(tp.FilenamePrefix, tr.LastLog)
-			trn.FilesCompleted += fprocessed
-			trn.LastLog = upid
-			trn.Rates = append(trn.Rates, r...)
-
-			// set the Done flag so that the manager can de-register the worker
-			if trn.FilesCompleted >= tp.NumOfFiles {
-				trn.Done = true
-			}
-			ti.Result = &trn
-			tm.s.update(testID, &ti)
-		}
-	*/
 }
 
 //
@@ -116,17 +100,24 @@ func (w *worker) sendResult() {
 func (w *worker) run() {
 	timer := time.NewTimer(waitTime)
 	for {
+		if w.ti.Result.GetResult().Done {
+			w.once.Do(func() {
+				w.tm.s.add(w.ti.Params.GetTestID(), w.ti)
+				timer.Stop()
+			})
+		}
+
 		select {
 		case <-timer.C:
 			w.update()
 			timer.Reset(waitTime)
 		case <-w.Request:
-			// choose not to update
-			//w.update()
+			// TODO choose not to update?
+			w.update()
 			w.sendResult()
-			//timer.Reset(waitTime)
+			// return false if timer is stopped
+			timer.Reset(waitTime)
 		case <-w.Exit:
-			timer.Stop()
 			return
 		}
 	}

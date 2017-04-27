@@ -7,10 +7,11 @@ import (
 )
 
 func TestCreateWorker(t *testing.T) {
-	dbc := mockStatsController{}
-	m := Create(&dbc)
+	m := Create()
 	var rp RatingParams
+	sc := mockStatsController{}
 	tp := TestParams{TestID: "abc"}
+	tp.DbController = &sc
 	tp.AdditionalInfo = map[string]string{
 		"p1": "1",
 	}
@@ -23,16 +24,18 @@ func TestCreateWorker(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	dbc := mockStatsController{}
-	m := Create(&dbc)
+	m := Create()
 	var rp RatingParams
 	tp := TestParams{TestID: "abc"}
 	tp.AdditionalInfo = map[string]string{
 		"p1": "1",
 	}
+	sc := mockStatsController{}
+	tp.DbController = &sc
 	rp.TestParams = tp
+
 	w := createWorker(m, &rp)
-	waitTime = 1 * time.Microsecond
+
 	go w.run()
 	time.Sleep(2 * waitTime)
 	w.Request <- struct{}{}
