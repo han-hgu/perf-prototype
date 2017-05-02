@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -27,18 +26,8 @@ func ratingStatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	json.NewEncoder(w).Encode(result)
-
-	// get the db configuration, hard-code to perf.conf
-	/*
-		var conf stats.DBConfig
-		if _, err := toml.DecodeFile("perf.conf", &conf); err != nil {
-			log.Fatal(err)
-		}
-
-		sc := stats.New(&conf)
-		defer sc.TearDown()
-	*/
 }
 
 // billingStatsHandler
@@ -50,19 +39,14 @@ func billingStatsHandler(w http.ResponseWriter, r *http.Request) {
 // ratingTestRequestHandler sets up asrrsssss rating test and returns the test id for
 // future query
 func ratingTestRequestHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("HAN >>>> ADD")
-	// Decode json body to rating.controller.testParams obj
+	// Decode body to rating.controller.testParams object
 	var params perftest.RatingParams
-	//a, _ := ioutil.ReadAll(r.Body)
-	//log.Println(string(a))
 	decoder := json.NewDecoder(r.Body)
 
 	if e := decoder.Decode(&params); e != nil {
-		http.Error(w, e.Error(), http.StatusInternalServerError)
+		http.Error(w, e.Error(), http.StatusBadRequest)
 		return
 	}
-
-	fmt.Println("HAN >>> param:", params)
 
 	testID, e := StartRatingTest(&params)
 	if e != nil {

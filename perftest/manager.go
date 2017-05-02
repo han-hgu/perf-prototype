@@ -3,6 +3,7 @@ package perftest
 import (
 	"errors"
 	"sync"
+	"time"
 )
 
 // Manager manages workers and has a central store for test info
@@ -39,6 +40,21 @@ func (tm *Manager) Add(testID string, t Params) {
 // Get the test result using testID
 func (tm *Manager) Get(testID string) (Result, error) {
 	if r, e := tm.s.get(testID); e == nil {
+		// if we have the result in the store, the next request thread is
+		// responsible for closing the worker go-routine
+		tm.RLock()
+		defer tm.RUnlock()
+		// the request thread never blocks and do it in best effort manner
+		// so we have a race condition of mutliple request thread shutting
+		// down the worker only one wins the others timeout
+		if w, ok := tm.workerMap[testID]; ok {
+			go func() {
+				select {
+				case w.Exit <- struct{}{}:
+				case <-time.After(5 * time.Second):
+				}
+			}()
+		}
 		return r.Result, nil
 	}
 

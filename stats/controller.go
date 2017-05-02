@@ -2,7 +2,6 @@ package stats
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -10,8 +9,6 @@ import (
 
 	// mssql driver
 	_ "github.com/denisenkom/go-mssqldb"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
 
 	"github.com/perf-prototype/perftest"
 )
@@ -34,99 +31,6 @@ type Controller struct {
 
 var c *Controller
 var once sync.Once
-
-// UpdateRatingResult updates the testInfo and database id tracker
-func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perftest.DBIDTracker) error {
-	start := time.Now()
-	dbIDTracker.EventLogCurrent = c.getLastEventLogID()
-	dbIDTracker.UDRCurrent = c.getLastUdrID()
-	dbIDTracker.UDRExceptionCurrent = c.getLastUdrExceptionID()
-
-	fmt.Println("HAN >>>>")
-	fmt.Println("EventLogLastProcessed:", dbIDTracker.EventLogLastProcessed)
-	fmt.Println("EventLogCurrent:", dbIDTracker.EventLogCurrent)
-	fmt.Println("UDRLastProcessed:", dbIDTracker.UDRLastProcessed)
-	fmt.Println("UDRCurrent:", dbIDTracker.UDRCurrent)
-	fmt.Println("UDRExceptionLastProcessed:", dbIDTracker.UDRExceptionLastProcessed)
-	fmt.Println("UDRExceptionCurrent:", dbIDTracker.UDRExceptionCurrent)
-	fmt.Println("")
-
-	rp, ok := ti.Params.(*perftest.RatingParams)
-	if !ok {
-		log.Fatal("ERR: Failed to cast ti.Params to *RatingParams")
-	}
-
-	rr, ok := ti.Result.(*perftest.RatingResult)
-	if !ok {
-		log.Fatal("ERR: Failed to cast ti.Result to *RatingResult")
-	}
-
-	var (
-		udrC                   uint64
-		udrExceptionC          uint64
-		rates                  []float32
-		numberOfFilesProcessed uint32
-	)
-
-	var wg sync.WaitGroup
-	// UDRs
-	wg.Add(1)
-	go c.getUDRCount(&wg, dbIDTracker.UDRLastProcessed, dbIDTracker.UDRCurrent, &udrC)
-
-	// UDRExceptions
-	wg.Add(1)
-	go c.getUDRExceptionCount(&wg, dbIDTracker.UDRLastProcessed, dbIDTracker.UDRCurrent, &udrExceptionC)
-
-	// rates
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		rates = c.getRatesFromEventLog(dbIDTracker.EventLogLastProcessed, dbIDTracker.EventLogCurrent)
-	}()
-
-	// Number of rating files processed
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		numberOfFilesProcessed = c.numOfFileProcessed(rp.FilenamePrefix, dbIDTracker.EventLogLastProcessed, dbIDTracker.EventLogCurrent)
-	}()
-
-	wg.Wait()
-
-	// HAN >>>>
-	mem, _ := mem.VirtualMemory()
-	cpu, _ := cpu.Percent(0, false)
-	fmt.Printf("MemUsedPercent:%f%%\n", mem.UsedPercent)
-	fmt.Printf("CPUPercent:%f%%\n", cpu[0])
-
-	rr.UDRProcessed += udrC
-	rr.UDRExceptionProcessed += udrExceptionC
-	rr.FilesCompleted += numberOfFilesProcessed
-	fmt.Println("HAN >>> rr.UDRProcessed", rr.UDRProcessed)
-	fmt.Println("HAN >>> rr.UDRExceptionProcessed", rr.UDRExceptionProcessed)
-	fmt.Println("HAN >>> rr.FilesCompleted", rr.FilesCompleted)
-	if rr.FilesCompleted == rp.NumOfFiles {
-		rr.Done = true
-	}
-
-	for _, v := range rates {
-		if v < rr.MinRate && v != 0 {
-			rr.MinRate = v
-		}
-
-		rr.Rates = append(rr.Rates, v)
-	}
-
-	dbIDTracker.EventLogLastProcessed = dbIDTracker.EventLogCurrent
-	dbIDTracker.UDRLastProcessed = dbIDTracker.UDRCurrent
-	dbIDTracker.UDRExceptionLastProcessed = dbIDTracker.UDRExceptionCurrent
-	dbIDTracker.TimePrevious = start
-	elapsed := time.Since(start)
-	fmt.Println("HAN >>>> Time elapsed:", elapsed)
-	fmt.Println("")
-	fmt.Println("")
-	return nil
-}
 
 // UpdateBaselineIDs updates the last IDs for the related tables so that we start
 // examine the rows after those IDs

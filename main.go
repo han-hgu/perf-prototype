@@ -2,6 +2,23 @@ package main
 
 /*
 import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	c := make(chan struct{})
+
+	select {
+	case c <- struct{}{}:
+	case <-time.After(5 * time.Second):
+		fmt.Println("HAN >>> times up")
+	}
+
+	fmt.Println("OK")
+}
+
+import (
 	"bufio"
 	"log"
 	"os"

@@ -2,7 +2,6 @@ package perftest
 
 import (
 	"log"
-	"math"
 	"sync"
 	"time"
 )
@@ -45,13 +44,21 @@ func createWorker(tm *Manager, t Params) *worker {
 	if e := w.sc.UpdateBaselineIDs(w.dbIDTracker); e != nil {
 		log.Fatalf("ERR: update failed, %v", e)
 	}
+
 	w.tm = tm
 
 	// controller knows what actual db controller to use and should create the
 	// instance already, all worker knows is the interface
 
 	var tinfo TestInfo
-	// create a testInfo obj
+	var tr TestResult
+	tr.StartTime = time.Now()
+	tr.Done = false
+	tr.AdditionalInfo = t.GetInfo()
+	tr.Keywords = t.GetKeywords()
+	tr.CPUMax = 0
+	tr.MemMax = 0
+
 	switch t.(type) {
 	default:
 		panic("ERR: Unknown test parameter type while creating worker thread")
@@ -60,14 +67,20 @@ func createWorker(tm *Manager, t Params) *worker {
 		w.tt = RATING
 
 		rr := new(RatingResult)
-		rr.Done = false
-		rr.StartTime = time.Now()
+		rr.TestResult = tr
 		rr.FilesCompleted = 0
-		rr.AdditionalInfo = t.GetInfo()
-		rr.MinRate = math.MaxFloat32
+		rr.MinRate = 0
+		rr.Rates = make([]float32, 0)
 
 		tinfo.Params = t
 		tinfo.Result = rr
+
+	case *BillingParams:
+		w.tt = BILLING
+
+		rr := new(BillingResult)
+		rr.TestResult = tr
+		rr.TransactionRates = make([]float32, 0)
 	}
 
 	w.ti = &tinfo
@@ -85,6 +98,8 @@ func (w *worker) update() {
 		if e := w.sc.UpdateRatingResult(w.ti, w.dbIDTracker); e != nil {
 			log.Fatalf("ERR: Worker failed updating rating results, %v", e)
 		}
+
+	case BILLING:
 
 	default:
 	}
@@ -112,12 +127,17 @@ func (w *worker) run() {
 			w.update()
 			timer.Reset(waitTime)
 		case <-w.Request:
-			// TODO choose not to update?
-			w.update()
+			// TODO not to update if we calculate the rates by counting the rows
+			//w.update()
 			w.sendResult()
+			// never reset timer if we want calcuate by counting the rows
 			// return false if timer is stopped
-			timer.Reset(waitTime)
+			//timer.Reset(waitTime)
 		case <-w.Exit:
+			w.tm.Lock()
+			defer w.tm.Unlock()
+			delete(w.tm.workerMap, w.ti.Params.GetTestID())
+			close(w.Response)
 			return
 		}
 	}
