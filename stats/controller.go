@@ -50,6 +50,18 @@ func (c *Controller) UpdateBaselineIDs(dbIDTracker *perftest.DBIDTracker) error 
 	return nil
 }
 
+// UpdateDBParameters to update the database parameters
+func (c *Controller) UpdateDBParameters(dbname string, dbp *perftest.DBParam) error {
+	dbp.CompatibilityLevel = c.compatiblityLevel(dbname)
+	return nil
+}
+
+func (c *Controller) compatiblityLevel(dbname string) (clevel uint8) {
+	q := `SELECT compatibility_level FROM sys.databases WHERE name = '` + dbname + `'`
+	c.getLastVal(q, &clevel)
+	return clevel
+}
+
 // CreateController returns a controller to communicate with the sql db based
 // on DBConfig
 func CreateController(dbc *DBConfig) *Controller {
@@ -89,6 +101,14 @@ func (c *Controller) getRecordCount(q string) (count uint64) {
 	return count
 }
 
+func (c *Controller) getLastVal(q string, v interface{}) {
+	err := c.db.QueryRow(q).Scan(v)
+
+	if err != nil {
+		log.Fatal("ERR:", err)
+	}
+}
+
 func (c *Controller) getLastID(q string) uint64 {
 	rows, err := c.db.Query(q)
 	if err != nil {
@@ -116,14 +136,4 @@ func (c *Controller) getLastID(q string) uint64 {
 func (c *Controller) getLastEventLogID() uint64 {
 	qEventLog := "select top 1 id from eventlog order by id desc"
 	return c.getLastID(qEventLog)
-}
-
-func (c *Controller) getLastUdrID() uint64 {
-	qUdr := "select top 1 id from udr order by id desc"
-	return c.getLastID(qUdr)
-}
-
-func (c *Controller) getLastUdrExceptionID() uint64 {
-	qUdrException := "select top 1 id from udrexception order by id desc"
-	return c.getLastID(qUdrException)
 }

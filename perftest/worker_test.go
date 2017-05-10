@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestCreateWorker(t *testing.T) {
+func TestCreateWorkerForRating(t *testing.T) {
 	m := Create()
 	var rp RatingParams
 	sc := mockStatsController{}
@@ -21,6 +21,25 @@ func TestCreateWorker(t *testing.T) {
 	if w.tt != RATING {
 		t.Error("Worker type is RATING")
 	}
+}
+
+func TestCreateWorkerForBilling(t *testing.T) {
+	m := Create()
+	var bp BillingParams
+	sc := mockStatsController{}
+
+	tp := TestParams{}
+	tp.DbController = &sc
+	bp.TestParams = tp
+	w := createWorker(m, &bp)
+	if w.tt != BILLING {
+		t.Error("Worker type is BILLING")
+	}
+
+	go w.run()
+	w.Request <- struct{}{}
+	<-w.Response
+	w.Exit <- struct{}{}
 }
 
 func TestRun(t *testing.T) {

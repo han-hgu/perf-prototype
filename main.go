@@ -3,6 +3,36 @@ package main
 /*
 import (
 	"fmt"
+
+	"github.com/perf-prototype/stats"
+)
+
+// test mssql db
+func main() {
+	var statsDBConf stats.DBConfig
+	statsDBConf.Server = "192.168.1.47"
+	statsDBConf.Port = 1433
+	statsDBConf.Database = "EngageIP_NonRevenue_85270"
+	statsDBConf.UID = "sa"
+	statsDBConf.Pwd = "Q@te$t#1"
+
+	sc := stats.CreateController(&statsDBConf)
+
+	fmt.Println("HAN >>>> billing started:", sc.BillingStarted("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> billing start time:", sc.BillingStartTime("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> billing finished:", sc.BillingFinished("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> billing finish time:", sc.BillingEndTime("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> invoice rendering started:", sc.InvoiceRenderingStarted("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> invoice rendering start time:", sc.InvoiceRenderingStartTime("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> invoice rendering finished:", sc.InvoiceRenderingFinished("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> invoice rendering finish time:", sc.InvoiceRenderingEndTime("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> bill run finished:", sc.BillrunFinished("Momentum_Retail", 221354332))
+	fmt.Println("HAN >>>> bill run finish time:", sc.BillrunEndTime("Momentum_Retail", 221354332))
+}
+
+
+import (
+	"fmt"
 	"time"
 )
 
@@ -64,7 +94,7 @@ func main() {
 func main() {
 	defer stats.GetController().TearDown()
 
-	//fmt.Println(stats.GetController().GetLastIdFromEventLog("Running Billing For owner ''Momentum_Voice"))
+	//fmt.Println(stats.GetController().GetLastIdFromEventLog("Running Billing For owner ''Momentum_Retail"))
 	_, _, r := stats.GetController().GetUDRRates("BW", 221354658)
 	f, _ := os.Create("perf.chart")
 	defer f.Close()

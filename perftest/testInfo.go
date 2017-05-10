@@ -1,6 +1,9 @@
 package perftest
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // Params interface to abstract out params
 type Params interface {
@@ -9,6 +12,7 @@ type Params interface {
 	GetController() iController
 	GetKeywords() map[string]string
 	GetCollectionInterval() time.Duration
+	GetDBConfig() *DBConf
 }
 
 // Result interface to abstract out results
@@ -71,34 +75,44 @@ type RatingParams struct {
 }
 
 // GetInfo to integrate RatingParams to Params interface
-func (rp *TestParams) GetInfo() map[string]string {
-	return rp.AdditionalInfo
+func (tp *TestParams) GetInfo() map[string]string {
+	return tp.AdditionalInfo
 }
 
 // GetTestID returns the test ID
-func (rp *TestParams) GetTestID() string {
-	return rp.TestID
+func (tp *TestParams) GetTestID() string {
+	return tp.TestID
 }
 
 // GetController get the iController from the params
-func (rp *TestParams) GetController() iController {
-	return rp.DbController
+func (tp *TestParams) GetController() iController {
+	return tp.DbController
 }
 
 // GetKeywords gets the keywords from the params
-func (rp *TestParams) GetKeywords() map[string]string {
-	return rp.Keywords
+func (tp *TestParams) GetKeywords() map[string]string {
+	return tp.Keywords
 }
 
 // GetCollectionInterval gets the collection interval from the params
-func (rp *TestParams) GetCollectionInterval() time.Duration {
-	return rp.CollectionInterval
+func (tp *TestParams) GetCollectionInterval() time.Duration {
+	return tp.CollectionInterval
+}
+
+// GetDBconfig gets the database configuration
+func (tp *TestParams) GetDBConfig() *DBConf {
+	return &(tp.DBConf)
 }
 
 // BillingParams to hold the billing test parameters
 type BillingParams struct {
 	TestParams
 	OwnerName string `json:"owner_name"`
+}
+
+// DBParam stores the db parameters which could impact performance
+type DBParam struct {
+	CompatibilityLevel uint8 `json:"compatibility_level"`
 }
 
 // TestResult to store generic results
@@ -110,6 +124,7 @@ type TestResult struct {
 	Keywords       map[string]string `json:"keywords,omitempty"`
 	CPUMax         float64           `json:"cpu_max(%)"`
 	MemMax         float64           `json:"mem_max(%)"`
+	DBParam        DBParam           `json:"database_parameters"`
 }
 
 // GetResult to integrate RatingResult to Result interface
@@ -131,8 +146,18 @@ type RatingResult struct {
 // BillingResult to save the billing information
 type BillingResult struct {
 	TestResult
-	TotalUserPackageBilled uint64        `json:"user_package_billed"`
-	InvoiceRenderTime      time.Duration `json:"invoice_render_time"`
-	TransactionRates       []float32     `json:"transaction_rates,omitempty"`
-	TransactionTotal       uint64        `json:"transaction_created"`
+	UserPackageBilled          uint64    `json:"user_package_billed,omitempty"`
+	InvoiceRenderDuration      string    `json:"invoice_render_duration,omitempty"`
+	InvoiceRenderStartTime     time.Time `json:"-"`
+	InvoiceRenderStartTimeOnce sync.Once `json:"-"`
+	InvoiceRenderEndTime       time.Time `json:"-"`
+	InvoiceRenderEndTimeOnce   sync.Once `json:"-"`
+	BillingDuration            string    `json:"billing_duration,omitempty"`
+	BillingStartTime           time.Time `json:"-"`
+	BillingStartTimeOnce       sync.Once `json:"-"`
+	BillingEndTime             time.Time `json:"-"`
+	BillingEndTimeOnce         sync.Once `json:"-"`
+	BillrunEndTime             time.Time `json:"-"`
+	BillrunEndOnce             sync.Once `json:"-"`
+	UserPackageBillRate        []uint32  `json:"user_package_bill_rate,omitempty"`
 }

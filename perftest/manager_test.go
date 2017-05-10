@@ -14,7 +14,15 @@ func (*mockStatsController) UpdateRatingResult(t *TestInfo, dbIDTracker *DBIDTra
 	return nil
 }
 
+func (*mockStatsController) UpdateBillingResult(t *TestInfo, dbIDTracker *DBIDTracker) error {
+	return nil
+}
+
 func (*mockStatsController) UpdateBaselineIDs(dbIDTracker *DBIDTracker) error {
+	return nil
+}
+
+func (*mockStatsController) UpdateDBParameters(dbname string, dbp *DBParam) error {
 	return nil
 }
 

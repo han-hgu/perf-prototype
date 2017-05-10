@@ -70,3 +70,34 @@ func StartRatingTest(t *perftest.RatingParams) (id string, err error) {
 	c.tm.Add(uid, t)
 	return uid, nil
 }
+
+// StartBillingTest starts a billing test
+func StartBillingTest(t *perftest.BillingParams) (id string, err error) {
+	initController()
+
+	// allocate uuid for the test run
+	uid, e := newUUID()
+	if e != nil {
+		return "", errors.New("fail to generate test ID")
+	}
+	t.TestID = uid
+
+	// for rating test, controller creates and assigns the stats controller to t;
+	// Perftest package should be flexible and only deal
+	// with iController interface for future extensibility
+	var statsDBConf stats.DBConfig
+	statsDBConf.Server = t.DBConf.Server
+	statsDBConf.Port = t.DBConf.Port
+	statsDBConf.Database = t.DBConf.Database
+	statsDBConf.UID = t.DBConf.UID
+	statsDBConf.Pwd = t.DBConf.Pwd
+
+	sc := stats.CreateController(&statsDBConf)
+	if sc == nil {
+		log.Fatal("ERR: Stats controller not created")
+	}
+	t.TestParams.DbController = sc
+
+	c.tm.Add(uid, t)
+	return uid, nil
+}

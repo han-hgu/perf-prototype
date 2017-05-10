@@ -44,6 +44,7 @@ func (tm *Manager) Get(testID string) (Result, error) {
 		// responsible for closing the worker go-routine
 		tm.RLock()
 		defer tm.RUnlock()
+
 		// the request thread never blocks and do it in best effort manner
 		// so we have a race condition of mutliple request thread shutting
 		// down the worker only one wins the others timeout

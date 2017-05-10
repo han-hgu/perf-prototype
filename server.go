@@ -14,8 +14,8 @@ type httpStats struct {
 	InvalidBody uint64
 }
 
-// ratingStatsHandler
-func ratingStatsHandler(w http.ResponseWriter, r *http.Request) {
+// statsHandler
+func statsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	testID := vars["testID"]
 
@@ -30,28 +30,42 @@ func ratingStatsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-// billingStatsHandler
-func billingStatsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("TODO:"))
-}
-
-// ratingTestRequestHandler
-// ratingTestRequestHandler sets up asrrsssss rating test and returns the test id for
+// TestRequestHandler sets up the test and returns the test id for
 // future query
-func ratingTestRequestHandler(w http.ResponseWriter, r *http.Request) {
-	// Decode body to rating.controller.testParams object
-	var params perftest.RatingParams
+func TestRequestHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	category := vars["category"]
+
+	var rparams perftest.RatingParams
+	var bparams perftest.BillingParams
+	var testID string
+	var e error
 	decoder := json.NewDecoder(r.Body)
+	switch category {
+	case "rating":
+		if e = decoder.Decode(&rparams); e != nil {
+			http.Error(w, e.Error(), http.StatusBadRequest)
+			return
+		}
 
-	if e := decoder.Decode(&params); e != nil {
-		http.Error(w, e.Error(), http.StatusBadRequest)
-		return
-	}
+		if testID, e = StartRatingTest(&rparams); e != nil {
+			http.Error(w, e.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	testID, e := StartRatingTest(&params)
-	if e != nil {
-		http.Error(w, e.Error(), http.StatusInternalServerError)
-		return
+	case "billing":
+		if e = decoder.Decode(&bparams); e != nil {
+			http.Error(w, e.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if testID, e = StartBillingTest(&bparams); e != nil {
+			http.Error(w, e.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	default:
+		http.Error(w, "Invalid category", http.StatusBadRequest)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -60,9 +74,8 @@ func ratingTestRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 // AddV1Routes adds version 1 handlers
 func AddV1Routes(r *mux.Router) {
-	r.HandleFunc("/rating/tests/{testID}", ratingStatsHandler).Methods("GET")
-	r.HandleFunc("/rating/tests", ratingTestRequestHandler).Methods("POST")
-	r.HandleFunc("/billing/tests", billingStatsHandler).Methods("GET")
+	r.HandleFunc("/{category:(?:billing|rating)}/tests/{testID}", statsHandler).Methods("GET")
+	r.HandleFunc("/{category:(?:billing|rating)}/tests", TestRequestHandler).Methods("POST")
 }
 
 func main() {

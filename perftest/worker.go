@@ -51,6 +51,7 @@ func createWorker(tm *Manager, t Params) *worker {
 	// instance already, all worker knows is the interface
 
 	var tinfo TestInfo
+	tinfo.Params = t
 	var tr TestResult
 	tr.StartTime = time.Now()
 	tr.Done = false
@@ -58,6 +59,10 @@ func createWorker(tm *Manager, t Params) *worker {
 	tr.Keywords = t.GetKeywords()
 	tr.CPUMax = 0
 	tr.MemMax = 0
+
+	if e := w.sc.UpdateDBParameters(t.GetDBConfig().Database, &(tr.DBParam)); e != nil {
+		log.Fatalf("ERR: update failed, %v", e)
+	}
 
 	switch t.(type) {
 	default:
@@ -71,8 +76,6 @@ func createWorker(tm *Manager, t Params) *worker {
 		rr.FilesCompleted = 0
 		rr.MinRate = 0
 		rr.Rates = make([]float32, 0)
-
-		tinfo.Params = t
 		tinfo.Result = rr
 
 	case *BillingParams:
@@ -80,7 +83,8 @@ func createWorker(tm *Manager, t Params) *worker {
 
 		rr := new(BillingResult)
 		rr.TestResult = tr
-		rr.TransactionRates = make([]float32, 0)
+		rr.UserPackageBillRate = make([]uint32, 0)
+		tinfo.Result = rr
 	}
 
 	w.ti = &tinfo
@@ -100,6 +104,9 @@ func (w *worker) update() {
 		}
 
 	case BILLING:
+		if e := w.sc.UpdateBillingResult(w.ti, w.dbIDTracker); e != nil {
+			log.Fatalf("ERR: Worker failed updating billing results, %v", e)
+		}
 
 	default:
 	}
@@ -113,6 +120,10 @@ func (w *worker) sendResult() {
 }
 
 func (w *worker) run() {
+	wt := w.ti.Params.GetCollectionInterval()
+	if wt != 0 {
+		waitTime = wt
+	}
 	timer := time.NewTimer(waitTime)
 	for {
 		if w.ti.Result.GetResult().Done {
