@@ -7,17 +7,21 @@ import (
 
 // Params interface to abstract out params
 type Params interface {
-	GetInfo() map[string]string
-	GetTestID() string
-	GetController() iController
-	GetKeywords() map[string]string
-	GetCollectionInterval() time.Duration
-	GetDBConfig() *DBConf
+	Info() map[string]string
+	TestID() string
+	Controller() iController
+	Keywords() map[string]string
+	CollectionInterval() time.Duration
+	DBConfig() *DBConf
 }
 
 // Result interface to abstract out results
 type Result interface {
-	GetResult() *TestResult
+	Result() *TestResult
+	CPUMax() float64
+	MemMax() float64
+	SetCPUMax(float64)
+	SetMemMax(float64)
 }
 
 // TestInfo stores all the test related information
@@ -37,12 +41,42 @@ type DBConf struct {
 
 // TestParams to hold common test parameters for all test types
 type TestParams struct {
-	TestID             string            `json:"-"`
-	DBConf             DBConf            `json:"db_config"`
-	AdditionalInfo     map[string]string `json:"additional_info"`
-	Keywords           map[string]string `json:"keywords"`
-	DbController       iController       `json:"-"`
-	CollectionInterval time.Duration     `json:"collection_interval"`
+	ID             string            `json:"-"`
+	DBConf         DBConf            `json:"db_config"`
+	AdditionalInfo map[string]string `json:"additional_info"`
+	Kwords         map[string]string `json:"keywords"`
+	DbController   iController       `json:"-"`
+	CInterval      time.Duration     `json:"collection_interval"`
+}
+
+// Info returns the AdditionalInfo field
+func (tp *TestParams) Info() map[string]string {
+	return tp.AdditionalInfo
+}
+
+// TestID returns the test ID
+func (tp *TestParams) TestID() string {
+	return tp.ID
+}
+
+// Controller returns the iController from the params
+func (tp *TestParams) Controller() iController {
+	return tp.DbController
+}
+
+// Keywords returns the keywords from the params
+func (tp *TestParams) Keywords() map[string]string {
+	return tp.Kwords
+}
+
+// CollectionInterval gets the collection interval from the params
+func (tp *TestParams) CollectionInterval() time.Duration {
+	return tp.CInterval
+}
+
+// DBConfig gets the database configuration
+func (tp *TestParams) DBConfig() *DBConf {
+	return &(tp.DBConf)
 }
 
 // DBIDTracker keeps track of the last database table IDs examined
@@ -59,7 +93,7 @@ type DBIDTracker struct {
 	TimePrevious              time.Time
 }
 
-// RatingParams to hold the rating test parameters
+// RatingParams holds rating test parameters
 type RatingParams struct {
 	TestParams
 	AmtFieldIndex       int      `json:"amount_field_index"`
@@ -74,37 +108,7 @@ type RatingParams struct {
 	DBIDTracker *DBIDTracker `json:"-"`
 }
 
-// GetInfo to integrate RatingParams to Params interface
-func (tp *TestParams) GetInfo() map[string]string {
-	return tp.AdditionalInfo
-}
-
-// GetTestID returns the test ID
-func (tp *TestParams) GetTestID() string {
-	return tp.TestID
-}
-
-// GetController get the iController from the params
-func (tp *TestParams) GetController() iController {
-	return tp.DbController
-}
-
-// GetKeywords gets the keywords from the params
-func (tp *TestParams) GetKeywords() map[string]string {
-	return tp.Keywords
-}
-
-// GetCollectionInterval gets the collection interval from the params
-func (tp *TestParams) GetCollectionInterval() time.Duration {
-	return tp.CollectionInterval
-}
-
-// GetDBconfig gets the database configuration
-func (tp *TestParams) GetDBConfig() *DBConf {
-	return &(tp.DBConf)
-}
-
-// BillingParams to hold the billing test parameters
+// BillingParams holds billing test parameters
 type BillingParams struct {
 	TestParams
 	OwnerName string `json:"owner_name"`
@@ -122,14 +126,34 @@ type TestResult struct {
 	Done           bool              `json:"test_completed"`
 	AdditionalInfo map[string]string `json:"additional_info"`
 	Keywords       map[string]string `json:"keywords,omitempty"`
-	CPUMax         float64           `json:"cpu_max(%)"`
-	MemMax         float64           `json:"mem_max(%)"`
+	CPUMaxium      float64           `json:"cpu_max(%)"`
+	MemMaxium      float64           `json:"mem_max(%)"`
 	DBParam        DBParam           `json:"database_parameters"`
 }
 
-// GetResult to integrate RatingResult to Result interface
-func (rr *TestResult) GetResult() *TestResult {
+// Result to integrate RatingResult to Result interface
+func (rr *TestResult) Result() *TestResult {
 	return rr
+}
+
+// CPUMax returns rr.CPUMax
+func (rr *TestResult) CPUMax() float64 {
+	return rr.CPUMaxium
+}
+
+// MemMax returns rr.MemMax
+func (rr *TestResult) MemMax() float64 {
+	return rr.MemMaxium
+}
+
+// SetCPUMax sets the CPUMax field
+func (rr *TestResult) SetCPUMax(v float64) {
+	rr.CPUMaxium = v
+}
+
+// SetMemMax sets the MemMax field
+func (rr *TestResult) SetMemMax(v float64) {
+	rr.MemMaxium = v
 }
 
 // RatingResult to save the rate information

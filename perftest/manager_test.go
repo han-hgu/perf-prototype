@@ -26,6 +26,9 @@ func (*mockStatsController) UpdateDBParameters(dbname string, dbp *DBParam) erro
 	return nil
 }
 
+func (*mockStatsController) TrackKPI(Result) {
+}
+
 func TestCreate(t *testing.T) {
 	m := Create()
 
@@ -67,7 +70,7 @@ func TestGetValidTestWithWorkerRegistered(t *testing.T) {
 		"p3": "3",
 	}
 
-	tp := TestParams{TestID: "abc"}
+	tp := TestParams{ID: "abc"}
 	tp.AdditionalInfo = ai
 
 	sc := mockStatsController{}
@@ -83,7 +86,7 @@ func TestGetValidTestWithWorkerRegistered(t *testing.T) {
 		t.Error("Worker returns the test result")
 	}
 
-	if !reflect.DeepEqual(r.GetResult().AdditionalInfo, ai) {
+	if !reflect.DeepEqual(r.Result().AdditionalInfo, ai) {
 		t.Error("Worker returns the correct test result")
 	}
 }

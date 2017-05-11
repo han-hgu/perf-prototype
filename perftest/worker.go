@@ -34,9 +34,11 @@ func createWorker(tm *Manager, t Params) *worker {
 	w := new(worker)
 	w.Request = make(chan struct{})
 	w.Response = make(chan Result)
-	w.Exit = make(chan struct{})
+	// create a buffered channel so no matter what worker is doing, it will receive
+	// the signal from Exit channel afterwards
+	w.Exit = make(chan struct{}, 1)
 	w.dbIDTracker = new(DBIDTracker)
-	w.sc = t.GetController()
+	w.sc = t.Controller()
 	if w.sc == nil {
 		panic("ERR: Cannot create worker with nil controller")
 	}
@@ -47,21 +49,18 @@ func createWorker(tm *Manager, t Params) *worker {
 
 	w.tm = tm
 
-	// controller knows what actual db controller to use and should create the
-	// instance already, all worker knows is the interface
-
 	var tinfo TestInfo
 	tinfo.Params = t
 	var tr TestResult
 	tr.StartTime = time.Now()
 	tr.Done = false
-	tr.AdditionalInfo = t.GetInfo()
-	tr.Keywords = t.GetKeywords()
-	tr.CPUMax = 0
-	tr.MemMax = 0
+	tr.AdditionalInfo = t.Info()
+	tr.Keywords = t.Keywords()
+	tr.SetCPUMax(float64(0))
+	tr.SetMemMax(float64(0))
 
-	if e := w.sc.UpdateDBParameters(t.GetDBConfig().Database, &(tr.DBParam)); e != nil {
-		log.Fatalf("ERR: update failed, %v", e)
+	if e := w.sc.UpdateDBParameters(t.DBConfig().Database, &(tr.DBParam)); e != nil {
+		log.Fatalf("ERR: update system parameters failed: %v", e)
 	}
 
 	switch t.(type) {
@@ -72,18 +71,18 @@ func createWorker(tm *Manager, t Params) *worker {
 		w.tt = RATING
 
 		rr := new(RatingResult)
-		rr.TestResult = tr
 		rr.FilesCompleted = 0
 		rr.MinRate = 0
 		rr.Rates = make([]float32, 0)
+		rr.TestResult = tr
 		tinfo.Result = rr
 
 	case *BillingParams:
 		w.tt = BILLING
 
 		rr := new(BillingResult)
-		rr.TestResult = tr
 		rr.UserPackageBillRate = make([]uint32, 0)
+		rr.TestResult = tr
 		tinfo.Result = rr
 	}
 
@@ -93,9 +92,11 @@ func createWorker(tm *Manager, t Params) *worker {
 
 // if the test is completed, update the store too
 func (w *worker) update() {
-	if w.ti.Result.GetResult().Done {
+	if w.ti.Result.Result().Done {
 		return
 	}
+
+	w.trackKPI()
 
 	switch w.tt {
 	case RATING:
@@ -119,16 +120,20 @@ func (w *worker) sendResult() {
 	w.Response <- w.ti.Result
 }
 
+func (w *worker) trackKPI() {
+	w.sc.TrackKPI(w.ti.Result)
+}
+
 func (w *worker) run() {
-	wt := w.ti.Params.GetCollectionInterval()
+	wt := w.ti.Params.CollectionInterval()
 	if wt != 0 {
 		waitTime = wt
 	}
 	timer := time.NewTimer(waitTime)
 	for {
-		if w.ti.Result.GetResult().Done {
+		if w.ti.Result.Result().Done {
 			w.once.Do(func() {
-				w.tm.s.add(w.ti.Params.GetTestID(), w.ti)
+				w.tm.s.add(w.ti.Params.TestID(), w.ti)
 				timer.Stop()
 			})
 		}
@@ -147,7 +152,7 @@ func (w *worker) run() {
 		case <-w.Exit:
 			w.tm.Lock()
 			defer w.tm.Unlock()
-			delete(w.tm.workerMap, w.ti.Params.GetTestID())
+			delete(w.tm.workerMap, w.ti.Params.TestID())
 			close(w.Response)
 			return
 		}

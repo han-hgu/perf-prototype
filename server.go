@@ -19,7 +19,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	testID := vars["testID"]
 
-	result, e := GetResult(testID)
+	result, e := Result(testID)
 	if e != nil {
 		http.Error(w, e.Error(), http.StatusInternalServerError)
 		return

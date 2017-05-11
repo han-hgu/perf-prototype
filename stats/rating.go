@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/perf-prototype/perftest"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
 )
 
 // UpdateRatingResult updates the testInfo and database id tracker
@@ -51,19 +49,6 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 
 	wg.Wait()
 
-	mem, _ := mem.VirtualMemory()
-	cpu, _ := cpu.Percent(0, false)
-	if mem.UsedPercent > rr.MemMax {
-		rr.MemMax = mem.UsedPercent
-	}
-
-	if cpu[0] > rr.CPUMax {
-		rr.CPUMax = cpu[0]
-	}
-
-	fmt.Printf("MemUsedPercent:\t%f%%\n", mem.UsedPercent)
-	fmt.Printf("CPUPercent:\t%f%%\n", cpu[0])
-
 	rr.UDRProcessed += udrC
 	rr.UDRExceptionProcessed += udrExceptionC
 	rr.FilesCompleted += numberOfFilesProcessed
@@ -84,7 +69,6 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	dbIDTracker.EventLogLastProcessed = dbIDTracker.EventLogCurrent
 	dbIDTracker.UDRLastProcessed = dbIDTracker.UDRCurrent
 	dbIDTracker.UDRExceptionLastProcessed = dbIDTracker.UDRExceptionCurrent
-	fmt.Printf("TimeElapsed:\t%v\n\n", time.Since(start))
 	// don't set it to now since it should be the time we grab the db table IDs
 	// and pick up from there
 	dbIDTracker.TimePrevious = start
@@ -183,7 +167,7 @@ func (c *Controller) getUDRCount(wg *sync.WaitGroup, last, current uint64, resul
 	}
 
 	q := fmt.Sprintf("select count(*) from udr where id > %v and id <= %v", last, current)
-	*result = c.getRecordCount(q)
+	c.getLastVal(q, []interface{}{result})
 }
 
 func (c *Controller) getUDRExceptionCount(wg *sync.WaitGroup, last, current uint64, result *uint64) {
@@ -192,15 +176,27 @@ func (c *Controller) getUDRExceptionCount(wg *sync.WaitGroup, last, current uint
 	}
 
 	q := fmt.Sprintf("select count(*) from udrException where id > %v and id <= %v", last, current)
-	*result = c.getRecordCount(q)
+	c.getLastVal(q, []interface{}{result})
 }
 
-func (c *Controller) getLastUdrID() uint64 {
+func (c *Controller) getLastUdrID() (id uint64) {
 	qUdr := "select top 1 id from udr order by id desc"
-	return c.getLastID(qUdr)
+
+	valExists, e := c.getLastVal(qUdr, []interface{}{&id})
+	if !valExists || e != nil {
+		log.Fatalf("getLastUdrID() gets an error: %v", e)
+	}
+
+	return id
 }
 
-func (c *Controller) getLastUdrExceptionID() uint64 {
+func (c *Controller) getLastUdrExceptionID() (id uint64) {
 	qUdrException := "select top 1 id from udrexception order by id desc"
-	return c.getLastID(qUdrException)
+
+	valExists, e := c.getLastVal(qUdrException, []interface{}{&id})
+	if !valExists || e != nil {
+		log.Fatalf("getLastUdrExceptionID() gets an error: %v", e)
+	}
+
+	return id
 }

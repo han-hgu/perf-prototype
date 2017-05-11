@@ -9,17 +9,17 @@ import (
 func TestGetInfo(t *testing.T) {
 	var rp RatingParams
 	rp.AdditionalInfo = map[string]string{"foo": "v1", "bar": "v2"}
-	if !reflect.DeepEqual(rp.AdditionalInfo, rp.GetInfo()) {
-		t.Errorf("GetInfo() returns correct value")
+	if !reflect.DeepEqual(rp.AdditionalInfo, rp.Info()) {
+		t.Errorf("Info() returns correct value")
 	}
 }
 
 func TestGetTestID(t *testing.T) {
 	var rp RatingParams
-	tp := TestParams{TestID: "abc"}
+	tp := TestParams{ID: "abc"}
 	rp.TestParams = tp
-	if rp.GetTestID() != tp.TestID {
-		t.Error("GetTestID() returns correct value")
+	if rp.TestID() != tp.ID {
+		t.Error("TestID() returns correct value")
 	}
 }
 
@@ -33,7 +33,7 @@ func TestGetResult(t *testing.T) {
 
 	rr.TestResult = tr
 
-	if !reflect.DeepEqual(rr.GetResult(), &tr) {
-		t.Errorf("GetResult() returns correct value")
+	if !reflect.DeepEqual(rr.Result(), &tr) {
+		t.Errorf("Result() returns correct value")
 	}
 }

@@ -1,12 +1,6 @@
 package main
 
 /*
-import (
-	"fmt"
-
-	"github.com/perf-prototype/stats"
-)
-
 // test mssql db
 func main() {
 	var statsDBConf stats.DBConfig
@@ -16,20 +10,27 @@ func main() {
 	statsDBConf.UID = "sa"
 	statsDBConf.Pwd = "Q@te$t#1"
 
+	tr := time.Time{}
+	fmt.Println("tr", tr)
 	sc := stats.CreateController(&statsDBConf)
 
-	fmt.Println("HAN >>>> billing started:", sc.BillingStarted("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> billing start time:", sc.BillingStartTime("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> billing finished:", sc.BillingFinished("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> billing finish time:", sc.BillingEndTime("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> invoice rendering started:", sc.InvoiceRenderingStarted("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> invoice rendering start time:", sc.InvoiceRenderingStartTime("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> invoice rendering finished:", sc.InvoiceRenderingFinished("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> invoice rendering finish time:", sc.InvoiceRenderingEndTime("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> bill run finished:", sc.BillrunFinished("Momentum_Retail", 221354332))
-	fmt.Println("HAN >>>> bill run finish time:", sc.BillrunEndTime("Momentum_Retail", 221354332))
-}
+	q := fmt.Sprintf("select '0001-01-01 00:00:00 +0000 UTC'")
+	//q := fmt.Sprintf("CONVERT(datetime, 0)")
+	var t time.Time
+	fmt.Println("HAN >>> t:", t)
+	fmt.Println("HAN >>> bool:", t.IsZero())
 
+	// fmt.Println("HAN >>>> billing started:", sc.BillingStarted("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> billing start time:", sc.BillingStartTime("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> billing finished:", sc.BillingFinished("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> billing finish time:", sc.BillingEndTime("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> invoice rendering started:", sc.InvoiceRenderingStarted("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> invoice rendering start time:", sc.InvoiceRenderingStartTime("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> invoice rendering finished:", sc.InvoiceRenderingFinished("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> invoice rendering finish time:", sc.InvoiceRenderingEndTime("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> bill run finished:", sc.BillrunFinished("Momentum_Retail", 221354332))
+	// fmt.Println("HAN >>>> bill run finish time:", sc.BillrunEndTime("Momentum_Retail", 221354332))
+}
 
 import (
 	"fmt"
@@ -92,10 +93,10 @@ func main() {
 // This is for generating chart
 /*
 func main() {
-	defer stats.GetController().TearDown()
+	defer stats.Controller().TearDown()
 
-	//fmt.Println(stats.GetController().GetLastIdFromEventLog("Running Billing For owner ''Momentum_Retail"))
-	_, _, r := stats.GetController().GetUDRRates("BW", 221354658)
+	//fmt.Println(stats.Controller().GetLastIdFromEventLog("Running Billing For owner ''Momentum_Retail"))
+	_, _, r := stats.Controller().GetUDRRates("BW", 221354658)
 	f, _ := os.Create("perf.chart")
 	defer f.Close()
 

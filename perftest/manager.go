@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Manager manages workers and has a central store for test info
+// Manager to manage workers and the store for finished tests
 type Manager struct {
 	s *store
 
@@ -15,7 +15,7 @@ type Manager struct {
 	workerMap map[string]*worker
 }
 
-// Create a new Manager
+// Create a new manager
 func Create() *Manager {
 	tm := new(Manager)
 	tm.s = new(store)
@@ -24,7 +24,7 @@ func Create() *Manager {
 	return tm
 }
 
-// Add Adds a test
+// Add a test
 func (tm *Manager) Add(testID string, t Params) {
 	w := createWorker(tm, t)
 	go w.run()
@@ -37,7 +37,7 @@ func (tm *Manager) Add(testID string, t Params) {
 	tm.workerMap[testID] = w
 }
 
-// Get the test result using testID
+// Get the test result providing testID
 func (tm *Manager) Get(testID string) (Result, error) {
 	if r, e := tm.s.get(testID); e == nil {
 		// if we have the result in the store, the next request thread is
@@ -51,7 +51,11 @@ func (tm *Manager) Get(testID string) (Result, error) {
 		if w, ok := tm.workerMap[testID]; ok {
 			go func() {
 				select {
+				// This is a buffered channel, have to take into account that
+				// the the worker is not able to handle the Exit within 5 sec
 				case w.Exit <- struct{}{}:
+				// If mutliple goroutines send to Exit channel, some of them will
+				// block, this is to prevent the resource leak
 				case <-time.After(5 * time.Second):
 				}
 			}()

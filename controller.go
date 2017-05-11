@@ -24,8 +24,8 @@ func initController() {
 	})
 }
 
-// GetResult returns the test result based on the UUID
-func GetResult(testID string) (perftest.Result, error) {
+// Result returns the test result based on the UUID
+func Result(testID string) (perftest.Result, error) {
 	// query before any test is started
 	initController()
 	return c.tm.Get(testID)
@@ -40,7 +40,7 @@ func StartRatingTest(t *perftest.RatingParams) (id string, err error) {
 	if e != nil {
 		return "", errors.New("fail to generate test ID")
 	}
-	t.TestID = uid
+	t.ID = uid
 
 	// for rating test, controller creates and assigns the stats controller to t;
 	// Perftest package should be flexible and only deal
@@ -80,7 +80,7 @@ func StartBillingTest(t *perftest.BillingParams) (id string, err error) {
 	if e != nil {
 		return "", errors.New("fail to generate test ID")
 	}
-	t.TestID = uid
+	t.ID = uid
 
 	// for rating test, controller creates and assigns the stats controller to t;
 	// Perftest package should be flexible and only deal

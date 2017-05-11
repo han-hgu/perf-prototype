@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"log"
 	"strconv"
-	"sync"
 	"time"
 
 	// mssql driver
@@ -27,39 +26,6 @@ type Controller struct {
 	conf       *DBConfig
 	connString string
 	db         *sql.DB
-}
-
-var c *Controller
-var once sync.Once
-
-// UpdateBaselineIDs updates the last IDs for the related tables so that we start
-// examine the rows after those IDs
-func (c *Controller) UpdateBaselineIDs(dbIDTracker *perftest.DBIDTracker) error {
-	dbIDTracker.EventlogStarted = c.getLastEventLogID()
-	dbIDTracker.UDRStarted = c.getLastUdrID()
-	dbIDTracker.UDRExceptionStarted = c.getLastUdrExceptionID()
-	dbIDTracker.TimePrevious = time.Now()
-	// Don't call getLast...() again, logs are advancing at the same time
-	dbIDTracker.EventLogLastProcessed = dbIDTracker.EventlogStarted
-	dbIDTracker.UDRLastProcessed = dbIDTracker.UDRStarted
-	dbIDTracker.UDRExceptionLastProcessed = dbIDTracker.UDRExceptionStarted
-	dbIDTracker.EventLogCurrent = dbIDTracker.EventlogStarted
-	dbIDTracker.UDRCurrent = dbIDTracker.UDRStarted
-	dbIDTracker.UDRExceptionCurrent = dbIDTracker.UDRExceptionStarted
-
-	return nil
-}
-
-// UpdateDBParameters to update the database parameters
-func (c *Controller) UpdateDBParameters(dbname string, dbp *perftest.DBParam) error {
-	dbp.CompatibilityLevel = c.compatiblityLevel(dbname)
-	return nil
-}
-
-func (c *Controller) compatiblityLevel(dbname string) (clevel uint8) {
-	q := `SELECT compatibility_level FROM sys.databases WHERE name = '` + dbname + `'`
-	c.getLastVal(q, &clevel)
-	return clevel
 }
 
 // CreateController returns a controller to communicate with the sql db based
@@ -94,46 +60,52 @@ func (c *Controller) TearDown() {
 	}
 }
 
-func (c *Controller) getRecordCount(q string) (count uint64) {
-	if err := c.db.QueryRow(q).Scan(&count); err != nil {
-		log.Fatalf("ERR: Fail to execute %v, error: %v", q, err)
-	}
-	return count
+// UpdateBaselineIDs updates the IDs of each table to examine
+func (c *Controller) UpdateBaselineIDs(dbIDTracker *perftest.DBIDTracker) error {
+	dbIDTracker.EventlogStarted = c.getLastEventLogID()
+	dbIDTracker.UDRStarted = c.getLastUdrID()
+	dbIDTracker.UDRExceptionStarted = c.getLastUdrExceptionID()
+	dbIDTracker.TimePrevious = time.Now()
+	// Don't call getLast...() again, logs are advancing at the same time
+	dbIDTracker.EventLogLastProcessed = dbIDTracker.EventlogStarted
+	dbIDTracker.UDRLastProcessed = dbIDTracker.UDRStarted
+	dbIDTracker.UDRExceptionLastProcessed = dbIDTracker.UDRExceptionStarted
+	dbIDTracker.EventLogCurrent = dbIDTracker.EventlogStarted
+	dbIDTracker.UDRCurrent = dbIDTracker.UDRStarted
+	dbIDTracker.UDRExceptionCurrent = dbIDTracker.UDRExceptionStarted
+
+	return nil
 }
 
-func (c *Controller) getLastVal(q string, v interface{}) {
-	err := c.db.QueryRow(q).Scan(v)
-
-	if err != nil {
-		log.Fatal("ERR:", err)
-	}
-}
-
-func (c *Controller) getLastID(q string) uint64 {
+// getLastVal finds the first set of values from the query, it returns false
+// if it can't get any values
+func (c *Controller) getLastVal(q string, v []interface{}) (bool, error) {
 	rows, err := c.db.Query(q)
 	if err != nil {
-		// start from 0
-		return 0
+		return false, err
 	}
 
-	var id uint64
 	defer rows.Close()
 	for rows.Next() {
-		rowErr := rows.Scan(&id)
+		rowErr := rows.Scan(v...)
 		if rowErr != nil {
-			return 0
+			return false, rowErr
 		}
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return 0
+		return false, err
 	}
 
-	return id
+	return true, nil
 }
 
-func (c *Controller) getLastEventLogID() uint64 {
+func (c *Controller) getLastEventLogID() (id uint64) {
 	qEventLog := "select top 1 id from eventlog order by id desc"
-	return c.getLastID(qEventLog)
+	valExists, e := c.getLastVal(qEventLog, []interface{}{&id})
+	if !valExists || e != nil {
+		log.Fatalf("getLastEventLogID() gets an error: %v", e)
+	}
+	return id
 }

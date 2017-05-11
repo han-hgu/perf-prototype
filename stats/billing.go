@@ -60,7 +60,7 @@ func (c *Controller) UpdateBillingResult(ti *perftest.TestInfo, dbIDTracker *per
 func (c *Controller) BillingStarted(owner string, last uint64) bool {
 	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Starting Bill Run for owner ''%v'''", last, owner)
 	var v uint32
-	c.getLastVal(q, &v)
+	c.getLastVal(q, []interface{}{&v})
 
 	if v != 0 {
 		return true
@@ -72,7 +72,7 @@ func (c *Controller) BillingStarted(owner string, last uint64) bool {
 func (c *Controller) BillingStartTime(owner string, last uint64) time.Time {
 	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Starting Bill Run for owner ''%v'''", last, owner)
 	var t time.Time
-	c.getLastVal(q, &t)
+	c.getLastVal(q, []interface{}{&t})
 	return t
 }
 
@@ -80,7 +80,7 @@ func (c *Controller) BillingStartTime(owner string, last uint64) time.Time {
 func (c *Controller) BillingFinished(owner string, last uint64) bool {
 	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Billing for owner ''%v''%%'", last, owner)
 	var v uint32
-	c.getLastVal(q, &v)
+	c.getLastVal(q, []interface{}{&v})
 
 	if v != 0 {
 		return true
@@ -92,7 +92,7 @@ func (c *Controller) BillingFinished(owner string, last uint64) bool {
 func (c *Controller) BillingEndTime(owner string, last uint64) time.Time {
 	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Billing for owner ''%v''%%'", last, owner)
 	var t time.Time
-	c.getLastVal(q, &t)
+	c.getLastVal(q, []interface{}{&t})
 	return t
 }
 
@@ -100,7 +100,7 @@ func (c *Controller) BillingEndTime(owner string, last uint64) time.Time {
 func (c *Controller) InvoiceRenderingStarted(owner string, last uint64) bool {
 	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Running Render Invoice for owner ''%v'''", last, owner)
 	var v uint32
-	c.getLastVal(q, &v)
+	c.getLastVal(q, []interface{}{&v})
 
 	if v != 0 {
 		return true
@@ -112,7 +112,7 @@ func (c *Controller) InvoiceRenderingStarted(owner string, last uint64) bool {
 func (c *Controller) InvoiceRenderingStartTime(owner string, last uint64) time.Time {
 	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Running Render Invoice for owner ''%v'''", last, owner)
 	var t time.Time
-	c.getLastVal(q, &t)
+	c.getLastVal(q, []interface{}{&t})
 	return t
 }
 
@@ -120,7 +120,7 @@ func (c *Controller) InvoiceRenderingStartTime(owner string, last uint64) time.T
 func (c *Controller) InvoiceRenderingFinished(owner string, last uint64) bool {
 	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Render Invoice for owner ''%v'''", last, owner)
 	var v uint32
-	c.getLastVal(q, &v)
+	c.getLastVal(q, []interface{}{&v})
 
 	if v != 0 {
 		return true
@@ -132,7 +132,7 @@ func (c *Controller) InvoiceRenderingFinished(owner string, last uint64) bool {
 func (c *Controller) InvoiceRenderingEndTime(owner string, last uint64) time.Time {
 	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Finished Render Invoice for owner ''%v'''", last, owner)
 	var t time.Time
-	c.getLastVal(q, &t)
+	c.getLastVal(q, []interface{}{&t})
 	return t
 }
 
@@ -140,7 +140,7 @@ func (c *Controller) InvoiceRenderingEndTime(owner string, last uint64) time.Tim
 func (c *Controller) BillrunFinished(owner string, last uint64) bool {
 	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run for owner ''%v''%%'", last, owner)
 	var v uint32
-	c.getLastVal(q, &v)
+	c.getLastVal(q, []interface{}{&v})
 
 	if v != 0 {
 		return true
@@ -152,6 +152,6 @@ func (c *Controller) BillrunFinished(owner string, last uint64) bool {
 func (c *Controller) BillrunEndTime(owner string, last uint64) time.Time {
 	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run for owner ''%v'''", last, owner)
 	var t time.Time
-	c.getLastVal(q, &t)
+	c.getLastVal(q, []interface{}{&t})
 	return t
 }
