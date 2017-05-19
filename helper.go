@@ -13,6 +13,170 @@ import (
 	"github.com/perf-prototype/perftest"
 )
 
+// TemplateDataFeed for the data for graphing the udr rate graph
+type templateDataFeed struct {
+	Title   string
+	IDs     []string
+	Results [][]*float32
+}
+
+func getAppCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	var (
+		rv      templateDataFeed
+		rawVals [][]float32
+		maxl    int
+	)
+
+	// title
+	rv.Title = "Application Server CPU utilization"
+
+	// index
+	rv.IDs = append(rv.IDs, "X")
+	for _, tr := range trs {
+		rv.IDs = append(rv.IDs, tr.TestID())
+		rawVals = append(rawVals, tr.AppServerStats().CPU)
+		currLen := len(tr.AppServerStats().CPU)
+		if maxl < currLen {
+			maxl = currLen
+		}
+	}
+
+	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
+
+	return &rv, nil
+}
+
+func getAppMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	var (
+		rv      templateDataFeed
+		rawVals [][]float32
+		maxl    int
+	)
+
+	// title
+	rv.Title = "Application Server Memory utilization"
+
+	// index
+	rv.IDs = append(rv.IDs, "X")
+	for _, tr := range trs {
+		rv.IDs = append(rv.IDs, tr.TestID())
+		rawVals = append(rawVals, tr.AppServerStats().Mem)
+		currLen := len(tr.AppServerStats().Mem)
+		if maxl < currLen {
+			maxl = currLen
+		}
+	}
+
+	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
+
+	return &rv, nil
+}
+
+func getDBCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	var (
+		rv      templateDataFeed
+		rawVals [][]float32
+		maxl    int
+	)
+
+	// title
+	rv.Title = "Database Server CPU utilization"
+
+	// index
+	rv.IDs = append(rv.IDs, "X")
+	for _, tr := range trs {
+		rv.IDs = append(rv.IDs, tr.TestID())
+		rawVals = append(rawVals, tr.DBServerStats().CPU)
+		currLen := len(tr.DBServerStats().CPU)
+		if maxl < currLen {
+			maxl = currLen
+		}
+	}
+
+	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
+
+	return &rv, nil
+}
+
+func getDBMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	var (
+		rv      templateDataFeed
+		rawVals [][]float32
+		maxl    int
+	)
+
+	// title
+	rv.Title = "Database Server Memory utilization"
+
+	// index
+	rv.IDs = append(rv.IDs, "X")
+	for _, tr := range trs {
+		rv.IDs = append(rv.IDs, tr.TestID())
+		rawVals = append(rawVals, tr.DBServerStats().Mem)
+		currLen := len(tr.DBServerStats().Mem)
+		if maxl < currLen {
+			maxl = currLen
+		}
+	}
+
+	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
+
+	return &rv, nil
+}
+
+func getUDRRatesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	var (
+		rv      templateDataFeed
+		rawVals [][]float32
+		maxl    int
+	)
+
+	// title
+	rv.Title = "UDR Rates"
+
+	// index
+	rv.IDs = append(rv.IDs, "X")
+	for _, tr := range trs {
+		rv.IDs = append(rv.IDs, tr.TestID())
+
+		rr, ok := tr.(*perftest.RatingResult)
+		if !ok {
+			return nil, fmt.Errorf("test with id: %v is not a rating test", tr.TestID())
+		}
+
+		rawVals = append(rawVals, rr.Rates)
+		if maxl < len(rr.Rates) {
+			maxl = len(rr.Rates)
+		}
+	}
+
+	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
+
+	return &rv, nil
+}
+
+func parseResultsForTemplateDataFeed(tdf *templateDataFeed, rvs [][]float32, maxlen int) {
+	var retVals [][]*float32
+	for i := 0; i < maxlen; i++ {
+		retVals = append(retVals, make([]*float32, 0))
+		var index = new(float32)
+		*index = float32(i)
+		retVals[i] = append(retVals[i], index)
+		for j := 0; j < len(rvs); j++ {
+			val := new(float32)
+			if i < len(rvs[j]) {
+				*val = rvs[j][i]
+			} else {
+				val = nil
+			}
+
+			retVals[i] = append(retVals[i], val)
+		}
+	}
+
+	tdf.Results = retVals
+}
+
 // newUUID generates a random UUID according to RFC 4122
 func newUUID() (string, error) {
 	uuid := make([]byte, 16)

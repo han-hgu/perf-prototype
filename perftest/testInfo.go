@@ -11,17 +11,21 @@ type Params interface {
 	TestID() string
 	Controller() iController
 	Keywords() map[string]string
-	CollectionInterval() time.Duration
+	CollectionInterval() string
 	DBConfig() *DBConf
+	AppConfig() *AppConf
 }
 
 // Result interface to abstract out results
 type Result interface {
 	Result() *TestResult
-	CPUMax() float64
-	MemMax() float64
-	SetCPUMax(float64)
-	SetMemMax(float64)
+	AddAppServerCPU(float32)
+	AddAppServerMem(float32)
+	AddDBServerCPU(float32)
+	AddDBServerMem(float32)
+	AppServerStats() genericStats
+	DBServerStats() genericStats
+	TestID() string
 }
 
 // TestInfo stores all the test related information
@@ -39,14 +43,26 @@ type DBConf struct {
 	Pwd      string `json:"password"`
 }
 
+// perfMonAppStats to hold the stats from perfmon
+type perfMonAppStats struct {
+	Mem float32 `json:"mem"`
+	CPU float32 `json:"cpu"`
+}
+
+// AppConf for perfmon url
+type AppConf struct {
+	URL string `json:"url"`
+}
+
 // TestParams to hold common test parameters for all test types
 type TestParams struct {
 	ID             string            `json:"-"`
 	DBConf         DBConf            `json:"db_config"`
+	AppConf        AppConf           `json:"app_config"`
 	AdditionalInfo map[string]string `json:"additional_info"`
 	Kwords         map[string]string `json:"keywords"`
 	DbController   iController       `json:"-"`
-	CInterval      time.Duration     `json:"collection_interval"`
+	CInterval      string            `json:"collection_interval"`
 }
 
 // Info returns the AdditionalInfo field
@@ -70,13 +86,18 @@ func (tp *TestParams) Keywords() map[string]string {
 }
 
 // CollectionInterval gets the collection interval from the params
-func (tp *TestParams) CollectionInterval() time.Duration {
+func (tp *TestParams) CollectionInterval() string {
 	return tp.CInterval
 }
 
 // DBConfig gets the database configuration
 func (tp *TestParams) DBConfig() *DBConf {
 	return &(tp.DBConf)
+}
+
+// AppConfig gets the app server information
+func (tp *TestParams) AppConfig() *AppConf {
+	return &(tp.AppConf)
 }
 
 // DBIDTracker keeps track of the last database table IDs examined
@@ -119,16 +140,30 @@ type DBParam struct {
 	CompatibilityLevel uint8 `json:"compatibility_level"`
 }
 
+// genericStats for CPU and memory
+type genericStats struct {
+	CPU       []float32 `json:"cpu(%)"`
+	CPUMaxium float32   `json:"cpu_max(%)"`
+	Mem       []float32 `json:"mem(%)"`
+	MemMaxium float32   `json:"mem_max(%)"`
+}
+
 // TestResult to store generic results
 type TestResult struct {
+	ID             string            `json:"ID"`
 	StartTime      time.Time         `json:"start_date"`
 	Duration       string            `json:"test_duration,omitempty"`
 	Done           bool              `json:"test_completed"`
 	AdditionalInfo map[string]string `json:"additional_info"`
 	Keywords       map[string]string `json:"keywords,omitempty"`
-	CPUMaxium      float64           `json:"cpu_max(%)"`
-	MemMaxium      float64           `json:"mem_max(%)"`
+	AppStats       genericStats      `json:"app_server_stats"`
+	DBStats        genericStats      `json:"database_server_stats"`
 	DBParam        DBParam           `json:"database_parameters"`
+}
+
+// TestID to get the test ID
+func (rr *TestResult) TestID() string {
+	return rr.ID
 }
 
 // Result to integrate RatingResult to Result interface
@@ -136,24 +171,62 @@ func (rr *TestResult) Result() *TestResult {
 	return rr
 }
 
-// CPUMax returns rr.CPUMax
-func (rr *TestResult) CPUMax() float64 {
-	return rr.CPUMaxium
+// AddAppServerCPU adds a cpu sample for the app server
+func (rr *TestResult) AddAppServerCPU(v float32) {
+	if rr.AppStats.CPU == nil {
+		rr.AppStats.CPU = make([]float32, 0)
+	}
+
+	rr.AppStats.CPU = append(rr.AppStats.CPU, v)
+	if rr.AppStats.CPUMaxium < v {
+		rr.AppStats.CPUMaxium = v
+	}
 }
 
-// MemMax returns rr.MemMax
-func (rr *TestResult) MemMax() float64 {
-	return rr.MemMaxium
+// AddAppServerMem adds a memory sample for the app server
+func (rr *TestResult) AddAppServerMem(v float32) {
+	if rr.AppStats.Mem == nil {
+		rr.AppStats.Mem = make([]float32, 0)
+	}
+
+	rr.AppStats.Mem = append(rr.AppStats.Mem, v)
+	if rr.AppStats.MemMaxium < v {
+		rr.AppStats.MemMaxium = v
+	}
 }
 
-// SetCPUMax sets the CPUMax field
-func (rr *TestResult) SetCPUMax(v float64) {
-	rr.CPUMaxium = v
+// AppServerStats to return the stats object for app server
+func (rr *TestResult) AppServerStats() genericStats {
+	return rr.AppStats
 }
 
-// SetMemMax sets the MemMax field
-func (rr *TestResult) SetMemMax(v float64) {
-	rr.MemMaxium = v
+// AddDBServerCPU adds a cpu sample for the database
+func (rr *TestResult) AddDBServerCPU(v float32) {
+	if rr.DBStats.CPU == nil {
+		rr.DBStats.CPU = make([]float32, 0)
+	}
+
+	rr.DBStats.CPU = append(rr.DBStats.CPU, v)
+	if rr.DBStats.CPUMaxium < v {
+		rr.DBStats.CPUMaxium = v
+	}
+}
+
+// AddDBServerMem adds a memory sample for the database
+func (rr *TestResult) AddDBServerMem(v float32) {
+	if rr.DBStats.Mem == nil {
+		rr.DBStats.Mem = make([]float32, 0)
+	}
+
+	rr.DBStats.Mem = append(rr.DBStats.Mem, v)
+	if rr.DBStats.MemMaxium < v {
+		rr.DBStats.MemMaxium = v
+	}
+}
+
+// DBServerStats to return the stats object for db server
+func (rr *TestResult) DBServerStats() genericStats {
+	return rr.DBStats
 }
 
 // RatingResult to save the rate information
@@ -162,6 +235,7 @@ type RatingResult struct {
 	Rates                 []float32 `json:"udr_rates,omitempty"`
 	MinRate               float32   `json:"-"`
 	AvgRate               float32   `json:"udr_rate_avg,omitempty"`
+	UDRProcessedTrend     []uint64  `json:"udr_created_trend"`
 	UDRProcessed          uint64    `json:"udr_created"`
 	UDRExceptionProcessed uint64    `json:"udr_exception_created"`
 	FilesCompleted        uint32    `json:"files_completed"`
@@ -170,18 +244,16 @@ type RatingResult struct {
 // BillingResult to save the billing information
 type BillingResult struct {
 	TestResult
-	UserPackageBilled          uint64    `json:"user_package_billed,omitempty"`
-	InvoiceRenderDuration      string    `json:"invoice_render_duration,omitempty"`
-	InvoiceRenderStartTime     time.Time `json:"-"`
-	InvoiceRenderStartTimeOnce sync.Once `json:"-"`
-	InvoiceRenderEndTime       time.Time `json:"-"`
-	InvoiceRenderEndTimeOnce   sync.Once `json:"-"`
-	BillingDuration            string    `json:"billing_duration,omitempty"`
-	BillingStartTime           time.Time `json:"-"`
-	BillingStartTimeOnce       sync.Once `json:"-"`
-	BillingEndTime             time.Time `json:"-"`
-	BillingEndTimeOnce         sync.Once `json:"-"`
-	BillrunEndTime             time.Time `json:"-"`
-	BillrunEndOnce             sync.Once `json:"-"`
-	UserPackageBillRate        []uint32  `json:"user_package_bill_rate,omitempty"`
+	UserPackageBilled        uint64    `json:"user_package_billed,omitempty"`
+	InvoiceRenderDuration    string    `json:"invoice_render_duration,omitempty"`
+	InvoiceRenderStartTime   time.Time `json:"-"`
+	InvoiceRenderEndTime     time.Time `json:"-"`
+	InvoiceRenderEndTimeOnce sync.Once `json:"-"`
+	BillingDuration          string    `json:"billing_duration,omitempty"`
+	BillingStartTime         time.Time `json:"-"`
+	BillingEndTime           time.Time `json:"-"`
+	BillingEndTimeOnce       sync.Once `json:"-"`
+	BillrunEndTime           time.Time `json:"-"`
+	BillrunEndOnce           sync.Once `json:"-"`
+	UserPackageBillRate      []uint32  `json:"user_package_bill_rate,omitempty"`
 }

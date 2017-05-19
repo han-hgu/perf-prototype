@@ -1,7 +1,10 @@
 package perftest
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -17,6 +20,9 @@ const (
 
 var waitTime = 10 * time.Second
 
+// want the http client to not affect the worker at all so imminent timeout
+const appClientReqTimeout = 300 * time.Millisecond
+
 // Worker for stats handling and background sync
 type worker struct {
 	tt          testType
@@ -28,12 +34,20 @@ type worker struct {
 	dbIDTracker *DBIDTracker
 	once        sync.Once
 	sc          iController
+	appStatsC   *http.Client
 }
 
 func createWorker(tm *Manager, t Params) *worker {
 	w := new(worker)
 	w.Request = make(chan struct{})
 	w.Response = make(chan Result)
+
+	// intialize the http client for app server stats
+	if w.appStatsC == nil {
+		// HAN >>>> don't forget to add it back
+		w.appStatsC = &http.Client{Timeout: appClientReqTimeout}
+	}
+
 	// create a buffered channel so no matter what worker is doing, it will receive
 	// the signal from Exit channel afterwards
 	w.Exit = make(chan struct{}, 1)
@@ -53,11 +67,10 @@ func createWorker(tm *Manager, t Params) *worker {
 	tinfo.Params = t
 	var tr TestResult
 	tr.StartTime = time.Now()
+	tr.ID = t.TestID()
 	tr.Done = false
 	tr.AdditionalInfo = t.Info()
 	tr.Keywords = t.Keywords()
-	tr.SetCPUMax(float64(0))
-	tr.SetMemMax(float64(0))
 
 	if e := w.sc.UpdateDBParameters(t.DBConfig().Database, &(tr.DBParam)); e != nil {
 		log.Fatalf("ERR: update system parameters failed: %v", e)
@@ -88,6 +101,21 @@ func createWorker(tm *Manager, t Params) *worker {
 
 	w.ti = &tinfo
 	return w
+}
+
+// TrackAppServerKPI to track the app server stats, minimum impact to the app
+// server even the app server micro service is down
+func (w *worker) TrackAppServerKPI() {
+	var pfstats perfMonAppStats
+	rsp, e := w.appStatsC.Get(w.ti.Params.AppConfig().URL)
+	if e != nil {
+		fmt.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
+	} else {
+		json.NewDecoder(rsp.Body).Decode(&pfstats)
+	}
+
+	w.ti.Result.AddAppServerCPU(pfstats.CPU)
+	w.ti.Result.AddAppServerMem(pfstats.Mem)
 }
 
 // if the test is completed, update the store too
@@ -121,14 +149,20 @@ func (w *worker) sendResult() {
 }
 
 func (w *worker) trackKPI() {
+	w.TrackAppServerKPI()
 	w.sc.TrackKPI(w.ti.Result)
 }
 
 func (w *worker) run() {
 	wt := w.ti.Params.CollectionInterval()
-	if wt != 0 {
-		waitTime = wt
+	if wt != "" {
+		var err error
+		waitTime, err = time.ParseDuration(wt)
+		if err != nil {
+			log.Fatalf("Invalid duration %s", wt)
+		}
 	}
+
 	timer := time.NewTimer(waitTime)
 	for {
 		if w.ti.Result.Result().Done {

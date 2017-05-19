@@ -445,6 +445,24 @@ if reflect.TypeOf(t) != reflect.TypeOf(s.info[uuid].Result) {
    ]
 }
 
+// sample billing test
+{
+	"db_config":{
+		"ip": "192.168.1.47",
+		"port": 1433,
+		"db_name": "EngageIP_NonRevenue_85270",
+		"uid": "sa",
+		"password": "Q@te$t#1"
+	},
+
+	"additional_info":{
+      "version":"8.5.26.5-Hotfix.62RC5",
+      "comment": "Perf result for index change for XXX"
+	},
+
+   "owner_name": "Momentum_Retail"
+}
+
 */
 
 package main

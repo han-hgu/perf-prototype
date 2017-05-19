@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/perf-prototype/perftest"
@@ -9,45 +10,56 @@ import (
 
 // UpdateBillingResult to update the billing results
 func (c *Controller) UpdateBillingResult(ti *perftest.TestInfo, dbIDTracker *perftest.DBIDTracker) error {
-	tr := ti.Result.(*perftest.BillingResult)
-	if tr.Done {
-		return nil
-	}
-
-	tp := ti.Params.(*perftest.BillingParams)
 	dbIDTracker.EventLogCurrent = c.getLastEventLogID()
+	tr := ti.Result.(*perftest.BillingResult)
+	tp := ti.Params.(*perftest.BillingParams)
 
-	if c.BillingStarted(tp.OwnerName, dbIDTracker.EventLogLastProcessed) {
-		tr.BillingStartTimeOnce.Do(func() {
-			tr.BillingStartTime = c.BillingStartTime(tp.OwnerName, dbIDTracker.EventLogLastProcessed)
-		})
-	}
+	var wg sync.WaitGroup
 
-	if c.BillingFinished(tp.OwnerName, dbIDTracker.EventLogLastProcessed) {
+	wg.Add(1)
+	go c.GetBillingStartTime(&wg, tp.OwnerName, dbIDTracker.EventLogLastProcessed, &tr.BillingStartTime)
+
+	wg.Add(1)
+	go c.GetBillingEndTime(&wg, tp.OwnerName, dbIDTracker.EventLogLastProcessed, &tr.BillingEndTime)
+
+	wg.Add(1)
+	go c.GetInvoiceRenderStartTime(&wg, tp.OwnerName, dbIDTracker.EventLogLastProcessed, &tr.InvoiceRenderStartTime)
+
+	wg.Add(1)
+	go c.GetInvoiceRenderEndTime(&wg, tp.OwnerName, dbIDTracker.EventLogLastProcessed, &tr.InvoiceRenderEndTime)
+
+	wg.Add(1)
+	go c.GetBillrunEndTime(&wg, tp.OwnerName, dbIDTracker.EventLogLastProcessed, &tr.BillrunEndTime)
+
+	wg.Wait()
+
+	if !tr.BillingEndTime.IsZero() {
+		if tr.BillingStartTime.IsZero() {
+			panic("ERR: Billing end time captured but not start time")
+		}
+
 		tr.BillingEndTimeOnce.Do(func() {
-			tr.BillingEndTime = c.BillingEndTime(tp.OwnerName, dbIDTracker.EventLogLastProcessed)
 			tr.BillingDuration = tr.BillingEndTime.Sub(tr.BillingStartTime).String()
 		})
 	}
 
-	if c.InvoiceRenderingStarted(tp.OwnerName, dbIDTracker.EventlogStarted) {
-		tr.InvoiceRenderStartTimeOnce.Do(func() {
-			tr.InvoiceRenderStartTime = c.InvoiceRenderingStartTime(tp.OwnerName, dbIDTracker.EventLogLastProcessed)
-		})
-	}
+	if !tr.InvoiceRenderEndTime.IsZero() {
+		if tr.InvoiceRenderStartTime.IsZero() {
+			panic("ERR: Invoice render end time captured but not start time")
+		}
 
-	if c.InvoiceRenderingFinished(tp.OwnerName, dbIDTracker.EventlogStarted) {
 		tr.InvoiceRenderEndTimeOnce.Do(func() {
-			tr.InvoiceRenderEndTime = c.InvoiceRenderingEndTime(tp.OwnerName, dbIDTracker.EventLogLastProcessed)
 			tr.InvoiceRenderDuration = tr.InvoiceRenderEndTime.Sub(tr.InvoiceRenderStartTime).String()
 		})
 	}
 
-	if c.BillrunFinished(tp.OwnerName, dbIDTracker.EventLogLastProcessed) {
+	if !tr.BillrunEndTime.IsZero() {
+		if tr.BillingStartTime.IsZero() {
+			panic("ERR: Invo end time captured but not start time")
+		}
+
 		tr.BillrunEndOnce.Do(func() {
-			tr.BillrunEndTime = c.BillrunEndTime(tp.OwnerName, dbIDTracker.EventLogLastProcessed)
 			tr.Duration = tr.BillrunEndTime.Sub(tr.BillingStartTime).String()
-			// TODO
 			tr.Done = true
 		})
 	}
@@ -56,102 +68,47 @@ func (c *Controller) UpdateBillingResult(ti *perftest.TestInfo, dbIDTracker *per
 	return nil
 }
 
-// BillingStarted checks if billing is started
-func (c *Controller) BillingStarted(owner string, last uint64) bool {
-	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Starting Bill Run for owner ''%v'''", last, owner)
-	var v uint32
-	c.getLastVal(q, []interface{}{&v})
-
-	if v != 0 {
-		return true
+// GetBillingStartTime gets the billing start time from the latest event log entries
+func (c *Controller) GetBillingStartTime(wg *sync.WaitGroup, owner string, last uint64, billingStartTime *time.Time) {
+	if wg != nil {
+		defer wg.Done()
 	}
-	return false
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Starting Bill Run for owner ''%v''' order by id desc", last, owner)
+	c.getLastVal(q, []interface{}{billingStartTime})
 }
 
-// BillingStartTime returns the billing start time
-func (c *Controller) BillingStartTime(owner string, last uint64) time.Time {
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Starting Bill Run for owner ''%v'''", last, owner)
-	var t time.Time
-	c.getLastVal(q, []interface{}{&t})
-	return t
-}
-
-// BillingFinished checks if billing is finished
-func (c *Controller) BillingFinished(owner string, last uint64) bool {
-	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Billing for owner ''%v''%%'", last, owner)
-	var v uint32
-	c.getLastVal(q, []interface{}{&v})
-
-	if v != 0 {
-		return true
+// GetBillingEndTime gets the billing end time from the latest event log entries
+func (c *Controller) GetBillingEndTime(wg *sync.WaitGroup, owner string, last uint64, billingEndTime *time.Time) {
+	if wg != nil {
+		defer wg.Done()
 	}
-	return false
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Billing for owner ''%v''%%' order by id desc", last, owner)
+	c.getLastVal(q, []interface{}{billingEndTime})
 }
 
-// BillingEndTime returns the billing end time
-func (c *Controller) BillingEndTime(owner string, last uint64) time.Time {
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Billing for owner ''%v''%%'", last, owner)
-	var t time.Time
-	c.getLastVal(q, []interface{}{&t})
-	return t
-}
-
-// InvoiceRenderingStarted checks if invoice rendering is started
-func (c *Controller) InvoiceRenderingStarted(owner string, last uint64) bool {
-	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Running Render Invoice for owner ''%v'''", last, owner)
-	var v uint32
-	c.getLastVal(q, []interface{}{&v})
-
-	if v != 0 {
-		return true
+// GetInvoiceRenderStartTime gets the invoice render start time from the latest event log entries
+func (c *Controller) GetInvoiceRenderStartTime(wg *sync.WaitGroup, owner string, last uint64, invoiceRenderStartTime *time.Time) {
+	if wg != nil {
+		defer wg.Done()
 	}
-	return false
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Running Render Invoice for owner ''%v''' order by id desc", last, owner)
+	c.getLastVal(q, []interface{}{invoiceRenderStartTime})
 }
 
-// InvoiceRenderingStartTime returns invoice rendering start time
-func (c *Controller) InvoiceRenderingStartTime(owner string, last uint64) time.Time {
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Running Render Invoice for owner ''%v'''", last, owner)
-	var t time.Time
-	c.getLastVal(q, []interface{}{&t})
-	return t
-}
-
-// InvoiceRenderingFinished checks if invoice rendering is finished
-func (c *Controller) InvoiceRenderingFinished(owner string, last uint64) bool {
-	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Render Invoice for owner ''%v'''", last, owner)
-	var v uint32
-	c.getLastVal(q, []interface{}{&v})
-
-	if v != 0 {
-		return true
+// GetInvoiceRenderEndTime gets the invoice render end time from the latest event log entries
+func (c *Controller) GetInvoiceRenderEndTime(wg *sync.WaitGroup, owner string, last uint64, invoiceRenderEndTime *time.Time) {
+	if wg != nil {
+		defer wg.Done()
 	}
-	return false
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Finished Render Invoice for owner ''%v''' order by id desc", last, owner)
+	c.getLastVal(q, []interface{}{invoiceRenderEndTime})
 }
 
-// InvoiceRenderingEndTime returns the invoice rendering end time
-func (c *Controller) InvoiceRenderingEndTime(owner string, last uint64) time.Time {
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Finished Render Invoice for owner ''%v'''", last, owner)
-	var t time.Time
-	c.getLastVal(q, []interface{}{&t})
-	return t
-}
-
-// BillrunFinished checks if billrun is completed
-func (c *Controller) BillrunFinished(owner string, last uint64) bool {
-	q := fmt.Sprintf("select count(*) from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run for owner ''%v''%%'", last, owner)
-	var v uint32
-	c.getLastVal(q, []interface{}{&v})
-
-	if v != 0 {
-		return true
+// GetBillrunEndTime gets the bill run time from the latest event log entries
+func (c *Controller) GetBillrunEndTime(wg *sync.WaitGroup, owner string, last uint64, billrunEndTime *time.Time) {
+	if wg != nil {
+		defer wg.Done()
 	}
-	return false
-}
-
-// BillrunEndTime returns the bill run end time
-func (c *Controller) BillrunEndTime(owner string, last uint64) time.Time {
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run for owner ''%v'''", last, owner)
-	var t time.Time
-	c.getLastVal(q, []interface{}{&t})
-	return t
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run for owner ''%v''' order by id desc", last, owner)
+	c.getLastVal(q, []interface{}{billrunEndTime})
 }

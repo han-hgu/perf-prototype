@@ -50,6 +50,7 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	wg.Wait()
 
 	rr.UDRProcessed += udrC
+	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, rr.UDRProcessed)
 	rr.UDRExceptionProcessed += udrExceptionC
 	rr.FilesCompleted += numberOfFilesProcessed
 	if rr.FilesCompleted == rp.NumOfFiles {
