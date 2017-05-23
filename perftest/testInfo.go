@@ -23,8 +23,8 @@ type Result interface {
 	AddAppServerMem(float32)
 	AddDBServerCPU(float32)
 	AddDBServerMem(float32)
-	AppServerStats() genericStats
-	DBServerStats() genericStats
+	AppServerStats() *GenericStats
+	DBServerStats() *GenericStats
 	TestID() string
 }
 
@@ -141,7 +141,7 @@ type DBParam struct {
 }
 
 // genericStats for CPU and memory
-type genericStats struct {
+type GenericStats struct {
 	CPU       []float32 `json:"cpu(%)"`
 	CPUMaxium float32   `json:"cpu_max(%)"`
 	Mem       []float32 `json:"mem(%)"`
@@ -156,8 +156,8 @@ type TestResult struct {
 	Done           bool              `json:"test_completed"`
 	AdditionalInfo map[string]string `json:"additional_info"`
 	Keywords       map[string]string `json:"keywords,omitempty"`
-	AppStats       genericStats      `json:"app_server_stats"`
-	DBStats        genericStats      `json:"database_server_stats"`
+	AppStats       GenericStats      `json:"app_server_stats"`
+	DBStats        GenericStats      `json:"database_server_stats"`
 	DBParam        DBParam           `json:"database_parameters"`
 }
 
@@ -196,8 +196,8 @@ func (rr *TestResult) AddAppServerMem(v float32) {
 }
 
 // AppServerStats to return the stats object for app server
-func (rr *TestResult) AppServerStats() genericStats {
-	return rr.AppStats
+func (rr *TestResult) AppServerStats() *GenericStats {
+	return &(rr.AppStats)
 }
 
 // AddDBServerCPU adds a cpu sample for the database
@@ -225,8 +225,8 @@ func (rr *TestResult) AddDBServerMem(v float32) {
 }
 
 // DBServerStats to return the stats object for db server
-func (rr *TestResult) DBServerStats() genericStats {
-	return rr.DBStats
+func (rr *TestResult) DBServerStats() *GenericStats {
+	return &(rr.DBStats)
 }
 
 // RatingResult to save the rate information

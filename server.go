@@ -36,6 +36,7 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 	ids, ok := qps["id"]
 	if !ok {
 		http.Error(w, "Missing test IDs to compare", http.StatusBadRequest)
+		return
 	}
 
 	var trs []perftest.Result
@@ -43,71 +44,30 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 		tr, e := Result(v)
 		if e != nil {
 			http.Error(w, fmt.Sprintf("Invalid test ID: %s", v), http.StatusBadRequest)
+			return
 		}
 
 		trs = append(trs, tr)
 	}
 
-	ratingDataFeed, e1 := getUDRRatesForTemplate(trs)
-	appCPUDataFeed, e2 := getAppCPUSamplesForTemplate(trs)
-
-	if e1 != nil {
-		http.Error(w, e1.Error(), http.StatusBadRequest)
-	}
-	if e2 != nil {
-		http.Error(w, e2.Error(), http.StatusBadRequest)
-	}
-
 	var df struct {
 		UDR    *templateDataFeed
 		AppCPU *templateDataFeed
+		AppMem *templateDataFeed
+		DBCPU  *templateDataFeed
+		DBMem  *templateDataFeed
 	}
 
-	df.UDR = ratingDataFeed
-	df.AppCPU = appCPUDataFeed
-
-	fmt.Println("HAN >>>>> df:", df)
+	df.UDR, _ = UDRRatesForTemplate(trs)
+	df.AppCPU, _ = AppCPUSamplesForTemplate(trs)
+	df.AppMem, _ = AppMemSamplesForTemplate(trs)
+	df.DBCPU, _ = DBCPUSamplesForTemplate(trs)
+	df.DBMem, _ = DBMemSamplesForTemplate(trs)
 
 	w.Header().Set("Content-Type", "text/html")
-	err := template.Must(template.New("comparison.tmpl").ParseFiles("templates/comparison.tmpl")).Execute(w, df)
-	fmt.Println("HAN >>>> e: ", err)
-
-	/*
-		var trs []perftest.Result
-		for _, v := range ids {
-			tr, e := Result(v)
-			if e != nil {
-				http.Error(w, fmt.Sprintf("Invalid test ID: %s", v), http.StatusBadRequest)
-			}
-
-			trs = append(trs, tr)
-		}
-
-		// right now only implements rate comparison
-
-		rmax := struct {
-			IDs     []string
-			Results [][]*float32
-		}{
-			IDs: []string{"X"},
-		}
-
-		rmax.IDs = append(rmax.IDs, ids...)
-		for i := 0; i < 3; i++ {
-			val := []*float32{}
-			var v1 = float32(i)
-			var v2 float32 = 1.1
-
-			val = append(val, &v1, &v2, nil)
-			rmax.Results = append(rmax.Results, val)
-
-		}
-		fmt.Println("HAN >>> rmax.Results", rmax.Results)
-
-		w.Header().Set("Content-Type", "text/html")
-		err := template.Must(template.New("comparison.tmpl").ParseFiles("templates/comparison.tmpl")).Execute(w, rmax)
-		fmt.Println("HAN >>>> e2", err)
-	*/
+	if err := template.Must(template.New("comparison.tmpl").ParseFiles("templates/comparison.tmpl")).Execute(w, df); err != nil {
+		fmt.Printf("ERR: templating returns error: %v\n", err)
+	}
 }
 
 // testRequestHandler sets up the test and returns the test id for

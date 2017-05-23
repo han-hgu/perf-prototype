@@ -20,7 +20,7 @@ type templateDataFeed struct {
 	Results [][]*float32
 }
 
-func getAppCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+func AppCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
 	var (
 		rv      templateDataFeed
 		rawVals [][]float32
@@ -46,7 +46,7 @@ func getAppCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, erro
 	return &rv, nil
 }
 
-func getAppMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+func AppMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
 	var (
 		rv      templateDataFeed
 		rawVals [][]float32
@@ -72,7 +72,7 @@ func getAppMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, erro
 	return &rv, nil
 }
 
-func getDBCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+func DBCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
 	var (
 		rv      templateDataFeed
 		rawVals [][]float32
@@ -98,7 +98,7 @@ func getDBCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error
 	return &rv, nil
 }
 
-func getDBMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+func DBMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
 	var (
 		rv      templateDataFeed
 		rawVals [][]float32
@@ -124,7 +124,7 @@ func getDBMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error
 	return &rv, nil
 }
 
-func getUDRRatesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+func UDRRatesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
 	var (
 		rv      templateDataFeed
 		rawVals [][]float32

@@ -10,6 +10,9 @@
       // Set a callback to run when the Google Visualization API is loaded.
       google.charts.setOnLoadCallback(drawRatingChart);
       google.charts.setOnLoadCallback(drawAppCPUChart);
+      google.charts.setOnLoadCallback(drawAppMemChart);
+      google.charts.setOnLoadCallback(drawDBCPUChart);
+      google.charts.setOnLoadCallback(drawDBMemChart);
 
       function drawAppCPUChart() {
           {{with .AppCPU}}
@@ -24,33 +27,161 @@
               {{range .Results}}
               [{{range .}}{{.}},{{end}}],
               {{end}}
-              /*
-              [0, 0, 0],
-              [1, 10, 5],
-              [2, 23, 15],
-              [3, 17, 9],
-              [4, 18, 10],
-              [5, 9, 5],
-              [6, 11, 3],
-              [7, 27, 19]
-              */
           ]);
 
           // Set chart options
           var options = {'title':{{.Title}},
                          'width':1800,
-                         'height':300};
+                         'height':300,
+                         'titleTextStyle': {
+    					     'color': '#0020C2',
+    						 'fontSize': 20,
+    						 'bold': true},
+    					 'hAxis': {
+    				         'title': 'Time'
+    				     },
+    					 'vAxis': {
+    				         'title': 'CPU (%)'
+    				     },
+    					 'crosshair': {
+    			             'color': '#000',
+                             'trigger': 'selection',
+                         },
+    					 'legend': {'position': 'center'}};
 
           {{end}}
 
           // Instantiate and draw our chart, passing in some options.
-          var chart = new google.visualization.LineChart(document.getElementById('chart_div2'));
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_app_cpu'));
           chart.draw(data, options);
       }
 
-      // Callback that creates and populates a data tablesave
-      // instantiates the pie chart, passes in the data and
-      // draws it.
+      function drawAppMemChart() {
+          {{with .AppMem}}
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                         'width':1800,
+                         'height':300,
+                         'titleTextStyle': {
+    					     'color': '#0020C2',
+    						 'fontSize': 20,
+    						 'bold': true},
+    					 'hAxis': {
+    				         'title': 'Time'
+    				     },
+    					 'vAxis': {
+    				         'title': 'Mem (%)'
+    				     },
+    					 'crosshair': {
+    			             'color': '#000',
+                             'trigger': 'selection',
+                         },
+    					 'legend': {'position': 'center'}};
+
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_app_mem'));
+          chart.draw(data, options);
+      }
+
+      function drawDBCPUChart() {
+          {{with .DBCPU}}
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                         'width':1800,
+                         'height':300,
+                         'titleTextStyle': {
+    					     'color': '#0020C2',
+    						 'fontSize': 20,
+    						 'bold': true},
+    					 'hAxis': {
+    				         'title': 'Time'
+    				     },
+    					 'vAxis': {
+    				         'title': 'CPU (%)'
+    				     },
+    					 'crosshair': {
+    			             'color': '#000',
+                             'trigger': 'selection',
+                         },
+    					 'legend': {'position': 'center'}};
+
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_db_cpu'));
+          chart.draw(data, options);
+      }
+
+      function drawDBMemChart() {
+          {{with .DBMem}}
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                         'width':1800,
+                         'height':300,
+                         'titleTextStyle': {
+    					     'color': '#0020C2',
+    						 'fontSize': 20,
+    						 'bold': true},
+    					 'hAxis': {
+    				         'title': 'Time'
+    				     },
+    					 'vAxis': {
+    				         'title': 'Mem (%)'
+    				     },
+    					 'crosshair': {
+    			             'color': '#000',
+                             'trigger': 'selection',
+                         },
+    					 'legend': {'position': 'center'}};
+
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_db_mem'));
+          chart.draw(data, options);
+      }
+
       function drawRatingChart() {
         {{with .UDR}}
 
@@ -65,27 +196,32 @@
             {{range .Results}}
             [{{range .}}{{.}},{{end}}],
             {{end}}
-            /*
-            [0, 0, 0],
-            [1, 10, 5],
-            [2, 23, 15],
-            [3, 17, 9],
-            [4, 18, 10],
-            [5, 9, 5],
-            [6, 11, 3],
-            [7, 27, 19]
-            */
         ]);
 
         // Set chart options
         var options = {'title':{{.Title}},
                        'width':1800,
-                       'height':300};
+                       'height':300,
+                       'titleTextStyle': {
+                           'color': '#0020C2',
+                           'fontSize': 20,
+                           'bold': true},
+                       'hAxis': {
+                           'title': 'Time'
+                       },
+                       'vAxis': {
+                           'title': 'UDRs/sec'
+                       },
+                       'crosshair': {
+                           'color': '#000',
+                           'trigger': 'selection',
+                       },
+                       'legend': {'position': 'center'}};
 
         {{end}}
 
         // Instantiate and draw our chart, passing in some options.
-        var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+        var chart = new google.visualization.LineChart(document.getElementById('chart_div_udr'));
         chart.draw(data, options);
       }
     </script>
@@ -93,7 +229,10 @@
 
   <body>
     <!--Div that will hold the pie chart-->
-    <div id="chart_div"></div>
-    <div id="chart_div2"></div>
+    <div id="chart_div_udr"></div>
+    <div id="chart_div_app_cpu"></div>
+    <div id="chart_div_app_mem"></div>
+    <div id="chart_div_db_cpu"></div>
+    <div id="chart_div_db_mem"></div>
   </body>
 </html>
