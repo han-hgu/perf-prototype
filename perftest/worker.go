@@ -42,9 +42,8 @@ func createWorker(tm *Manager, t Params) *worker {
 	w.Request = make(chan struct{})
 	w.Response = make(chan Result)
 
-	// intialize the http client for app server stats
+	// initialize the http client for app server stats
 	if w.appStatsC == nil {
-		// HAN >>>> don't forget to add it back
 		w.appStatsC = &http.Client{Timeout: appClientReqTimeout}
 	}
 
@@ -68,6 +67,7 @@ func createWorker(tm *Manager, t Params) *worker {
 	var tr TestResult
 	tr.StartTime = time.Now()
 	tr.ID = t.TestID()
+	tr.CTitle = t.ChartTitle()
 	tr.Done = false
 	tr.AdditionalInfo = t.Info()
 	tr.Keywords = t.Keywords()
@@ -100,13 +100,62 @@ func createWorker(tm *Manager, t Params) *worker {
 	}
 
 	w.ti = &tinfo
+
+	// baseline the database KPI
+	// TODO find a better place and multitasking
+	cpudontcare := new(float32)
+	lreadbase := &(w.ti.Result.DBServerStats().LReadsBase)
+	lwritebase := &(w.ti.Result.DBServerStats().LWritesBase)
+	preadbase := &(w.ti.Result.DBServerStats().PReadsBase)
+	w.sc.TrackKPI(nil, tinfo.Params.DBConfig().Database, cpudontcare, lreadbase, lwritebase, preadbase)
+
 	return w
+}
+
+func (w *worker) TrackKPI() {
+	var (
+		appCPU   = new(float32)
+		appMem   = new(float32)
+		dbsysCPU = new(float32)
+		dbCPU    = new(float32)
+		lreads   = new(uint64)
+		lwrites  = new(uint64)
+		preads   = new(uint64)
+	)
+
+	kpiStart := time.Now()
+
+	var wg sync.WaitGroup
+	// Track app server KPI
+	wg.Add(1)
+	go w.TrackAppServerKPI(&wg, appCPU, appMem)
+
+	// Track database server KPI
+	wg.Add(1)
+	go w.sc.TrackKPI(&wg, w.ti.Params.DBConfig().Database, dbCPU, lreads, lwrites, preads)
+
+	wg.Add(1)
+	go w.TrackDBSysCPU(&wg, dbsysCPU)
+
+	wg.Wait()
+	log.Printf("INFO: DB KPI takes %v to complete.\n", time.Since(kpiStart))
+
+	w.ti.Result.AddLogicalReads(*lreads - w.ti.Result.DBServerStats().LReadsBase - w.ti.Result.DBServerStats().LReadsTotal)
+	w.ti.Result.AddLogicalWrites(*lwrites - w.ti.Result.DBServerStats().LWritesBase - w.ti.Result.DBServerStats().LWritesTotal)
+	w.ti.Result.AddPhysicalReads(*preads - w.ti.Result.DBServerStats().PReadsBase - w.ti.Result.DBServerStats().PReadsTotal)
+	w.ti.Result.AddDBCPU((*dbsysCPU) * (*dbCPU) / 100)
+	w.ti.Result.AddAppServerCPU(*appCPU)
+	w.ti.Result.AddAppServerMem(*appMem)
 }
 
 // TrackAppServerKPI to track the app server stats, minimum impact to the app
 // server even the app server micro service is down
-func (w *worker) TrackAppServerKPI() {
-	var pfstats perfMonAppStats
+func (w *worker) TrackAppServerKPI(wg *sync.WaitGroup, cpu *float32, mem *float32) {
+	if wg != nil {
+		defer wg.Done()
+	}
+
+	var pfstats PerfMonStats
 	rsp, e := w.appStatsC.Get(w.ti.Params.AppConfig().URL)
 	if e != nil {
 		fmt.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
@@ -114,8 +163,26 @@ func (w *worker) TrackAppServerKPI() {
 		json.NewDecoder(rsp.Body).Decode(&pfstats)
 	}
 
-	w.ti.Result.AddAppServerCPU(pfstats.CPU)
-	w.ti.Result.AddAppServerMem(pfstats.Mem)
+	*cpu = pfstats.CPU
+	*mem = pfstats.Mem
+}
+
+// TrackDBSysCPU takes the CPU usage of the database server, this is the total
+// CPU used by the server
+func (w *worker) TrackDBSysCPU(wg *sync.WaitGroup, cpu *float32) {
+	if wg != nil {
+		defer wg.Done()
+	}
+
+	var pfstats PerfMonStats
+	rsp, e := w.appStatsC.Get(w.ti.Params.DBConfig().URL)
+	if e != nil {
+		fmt.Printf("WARNING: failed to get database stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
+	} else {
+		json.NewDecoder(rsp.Body).Decode(&pfstats)
+	}
+
+	*cpu = pfstats.CPU
 }
 
 // if the test is completed, update the store too
@@ -124,7 +191,7 @@ func (w *worker) update() {
 		return
 	}
 
-	w.trackKPI()
+	w.TrackKPI()
 
 	switch w.tt {
 	case RATING:
@@ -146,11 +213,6 @@ func (w *worker) update() {
 //
 func (w *worker) sendResult() {
 	w.Response <- w.ti.Result
-}
-
-func (w *worker) trackKPI() {
-	w.TrackAppServerKPI()
-	w.sc.TrackKPI(w.ti.Result)
 }
 
 func (w *worker) run() {

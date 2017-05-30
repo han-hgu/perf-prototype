@@ -51,22 +51,28 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var df struct {
-		UDR    *templateDataFeed
-		AppCPU *templateDataFeed
-		AppMem *templateDataFeed
-		DBCPU  *templateDataFeed
-		DBMem  *templateDataFeed
+		UDRRate     *templateDataFeed
+		AppCPU      *templateDataFeed
+		AppMem      *templateDataFeed
+		DBCPU       *templateDataFeed
+		UDRAbsolute *templateDataFeed
+		LReads      *templateDataFeedUint64
+		LWrites     *templateDataFeedUint64
+		PReads      *templateDataFeedUint64
 	}
 
-	df.UDR, _ = UDRRatesForTemplate(trs)
+	df.UDRRate, _ = UDRRatesForTemplate(trs)
 	df.AppCPU, _ = AppCPUSamplesForTemplate(trs)
 	df.AppMem, _ = AppMemSamplesForTemplate(trs)
 	df.DBCPU, _ = DBCPUSamplesForTemplate(trs)
-	df.DBMem, _ = DBMemSamplesForTemplate(trs)
+	df.UDRAbsolute, _ = UDRCurrentProcessedForTemplate(trs)
+	df.LReads, _ = DBLogicalReadsForTemplate(trs)
+	df.LWrites, _ = DBLogicalWrites(trs)
+	df.PReads, _ = DBPhysicalReadsForTemplate(trs)
 
 	w.Header().Set("Content-Type", "text/html")
 	if err := template.Must(template.New("comparison.tmpl").ParseFiles("templates/comparison.tmpl")).Execute(w, df); err != nil {
-		fmt.Printf("ERR: templating returns error: %v\n", err)
+		log.Printf("ERR: html template returns error: %v\n", err)
 	}
 }
 

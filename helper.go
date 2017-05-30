@@ -20,139 +20,83 @@ type templateDataFeed struct {
 	Results [][]*float32
 }
 
-func AppCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+type templateDataFeedUint64 struct {
+	Title   string
+	IDs     []string
+	Results [][]*uint64
+}
+
+type collector func(tr perftest.Result) []float32
+type collectorUint64 func(tr perftest.Result) []uint64
+
+func collectSamplesForTemplateUint64(title string, trs []perftest.Result, c collectorUint64) (*templateDataFeedUint64, error) {
+	var (
+		rv      templateDataFeedUint64
+		rawVals [][]uint64
+		maxl    int
+	)
+
+	rv.Title = title
+
+	// index
+	rv.IDs = append(rv.IDs, "X")
+	for _, tr := range trs {
+		rv.IDs = append(rv.IDs, tr.ChartTitle())
+		rawVals = append(rawVals, c(tr))
+		currLen := len(c(tr))
+		if maxl < currLen {
+			maxl = currLen
+		}
+	}
+
+	parseResultsForTemplateDataFeedUint64(&rv, rawVals, maxl)
+	return &rv, nil
+}
+
+func collectSamplesForTemplate(title string, trs []perftest.Result, c collector) (*templateDataFeed, error) {
 	var (
 		rv      templateDataFeed
 		rawVals [][]float32
 		maxl    int
 	)
 
-	// title
-	rv.Title = "Application Server CPU utilization"
+	rv.Title = title
 
 	// index
 	rv.IDs = append(rv.IDs, "X")
 	for _, tr := range trs {
-		rv.IDs = append(rv.IDs, tr.TestID())
-		rawVals = append(rawVals, tr.AppServerStats().CPU)
-		currLen := len(tr.AppServerStats().CPU)
+		rv.IDs = append(rv.IDs, tr.ChartTitle())
+		rawVals = append(rawVals, c(tr))
+		currLen := len(c(tr))
 		if maxl < currLen {
 			maxl = currLen
 		}
 	}
 
 	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
-
 	return &rv, nil
 }
 
-func AppMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
-	var (
-		rv      templateDataFeed
-		rawVals [][]float32
-		maxl    int
-	)
+func parseResultsForTemplateDataFeedUint64(tdf *templateDataFeedUint64, rvs [][]uint64, maxlen int) {
+	var retVals [][]*uint64
+	for i := 0; i < maxlen; i++ {
+		retVals = append(retVals, make([]*uint64, 0))
+		var index = new(uint64)
+		*index = uint64(i)
+		retVals[i] = append(retVals[i], index)
+		for j := 0; j < len(rvs); j++ {
+			val := new(uint64)
+			if i < len(rvs[j]) {
+				*val = rvs[j][i]
+			} else {
+				val = nil
+			}
 
-	// title
-	rv.Title = "Application Server Memory utilization"
-
-	// index
-	rv.IDs = append(rv.IDs, "X")
-	for _, tr := range trs {
-		rv.IDs = append(rv.IDs, tr.TestID())
-		rawVals = append(rawVals, tr.AppServerStats().Mem)
-		currLen := len(tr.AppServerStats().Mem)
-		if maxl < currLen {
-			maxl = currLen
+			retVals[i] = append(retVals[i], val)
 		}
 	}
 
-	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
-
-	return &rv, nil
-}
-
-func DBCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
-	var (
-		rv      templateDataFeed
-		rawVals [][]float32
-		maxl    int
-	)
-
-	// title
-	rv.Title = "Database Server CPU utilization"
-
-	// index
-	rv.IDs = append(rv.IDs, "X")
-	for _, tr := range trs {
-		rv.IDs = append(rv.IDs, tr.TestID())
-		rawVals = append(rawVals, tr.DBServerStats().CPU)
-		currLen := len(tr.DBServerStats().CPU)
-		if maxl < currLen {
-			maxl = currLen
-		}
-	}
-
-	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
-
-	return &rv, nil
-}
-
-func DBMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
-	var (
-		rv      templateDataFeed
-		rawVals [][]float32
-		maxl    int
-	)
-
-	// title
-	rv.Title = "Database Server Memory utilization"
-
-	// index
-	rv.IDs = append(rv.IDs, "X")
-	for _, tr := range trs {
-		rv.IDs = append(rv.IDs, tr.TestID())
-		rawVals = append(rawVals, tr.DBServerStats().Mem)
-		currLen := len(tr.DBServerStats().Mem)
-		if maxl < currLen {
-			maxl = currLen
-		}
-	}
-
-	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
-
-	return &rv, nil
-}
-
-func UDRRatesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
-	var (
-		rv      templateDataFeed
-		rawVals [][]float32
-		maxl    int
-	)
-
-	// title
-	rv.Title = "UDR Rates"
-
-	// index
-	rv.IDs = append(rv.IDs, "X")
-	for _, tr := range trs {
-		rv.IDs = append(rv.IDs, tr.TestID())
-
-		rr, ok := tr.(*perftest.RatingResult)
-		if !ok {
-			return nil, fmt.Errorf("test with id: %v is not a rating test", tr.TestID())
-		}
-
-		rawVals = append(rawVals, rr.Rates)
-		if maxl < len(rr.Rates) {
-			maxl = len(rr.Rates)
-		}
-	}
-
-	parseResultsForTemplateDataFeed(&rv, rawVals, maxl)
-
-	return &rv, nil
+	tdf.Results = retVals
 }
 
 func parseResultsForTemplateDataFeed(tdf *templateDataFeed, rvs [][]float32, maxlen int) {
@@ -175,6 +119,48 @@ func parseResultsForTemplateDataFeed(tdf *templateDataFeed, rvs [][]float32, max
 	}
 
 	tdf.Results = retVals
+}
+
+// AppCPUSamplesForTemplate returns app server CPU stats for google charts
+func AppCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	return collectSamplesForTemplate("Application Server CPU utilization", trs, perftest.FetchAppServerCPUStats)
+}
+
+// AppMemSamplesForTemplate returns app server memory stats for google charts
+func AppMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	return collectSamplesForTemplate("Application Server Memory utilization", trs, perftest.FetchAppServerMemStats)
+}
+
+// DBCPUSamplesForTemplate returns database CPU stats for google charts
+func DBCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	return collectSamplesForTemplate("Database Server CPU utilization", trs, perftest.FetchDBServerCPUStats)
+}
+
+func DBLogicalReadsForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
+	return collectSamplesForTemplateUint64("Database Logical Reads", trs, perftest.FetchDBServerLReads)
+}
+
+func DBPhysicalReadsForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
+	return collectSamplesForTemplateUint64("Database Physical Reads", trs, perftest.FetchDBServerPReads)
+}
+
+func DBLogicalWrites(trs []perftest.Result) (*templateDataFeedUint64, error) {
+	return collectSamplesForTemplateUint64("Database Logical Writes", trs, perftest.FetchDBServerLWrites)
+}
+
+// DBMemSamplesForTemplate returns database memory stats for google charts
+func DBMemSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	return collectSamplesForTemplate("Database Server Memory utilization", trs, perftest.FetchDBServerMemStats)
+}
+
+// UDRRatesForTemplate returns udr rates for google charts
+func UDRRatesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	return collectSamplesForTemplate("UDR Rates", trs, perftest.FetchRates)
+}
+
+// UDRCurrentProcessedForTemplate returns the total number of UDRs per interval
+func UDRCurrentProcessedForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
+	return collectSamplesForTemplate("Total UDR processed", trs, perftest.FetchUDRProcessedTrend)
 }
 
 // newUUID generates a random UUID according to RFC 4122

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"strconv"
 	"sync"
 	"time"
 
@@ -50,7 +49,10 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	wg.Wait()
 
 	rr.UDRProcessed += udrC
-	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, rr.UDRProcessed)
+	// Attention: UDRProcessed is a field for charting purpose, in order to
+	// make the interface unified, cast uint64 to float32 assuming the cast will
+	// always be successful
+	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, float32(rr.UDRProcessed))
 	rr.UDRExceptionProcessed += udrExceptionC
 	rr.FilesCompleted += numberOfFilesProcessed
 	if rr.FilesCompleted == rp.NumOfFiles {
@@ -74,55 +76,6 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	// and pick up from there
 	dbIDTracker.TimePrevious = start
 	return nil
-}
-
-func (c *Controller) getRatesFromEventLog(wg *sync.WaitGroup, firstID, lastID uint64, rates *[]float32) {
-	if wg != nil {
-		defer wg.Done()
-	}
-
-	var (
-		InvalidRatesRxp = regexp.MustCompile("UDRs in 0.0 seconds")
-		RateRxp         = regexp.MustCompile("([0-9]+)*.([0-9]+)* UDRs/second|([0-9]+)* UDRs/second")
-		RateValRxp      = regexp.MustCompile("([0-9]+)*.([0-9]+)*")
-	)
-
-	q := fmt.Sprintf("select id, result from "+
-		"eventlog where id > %v and id <= %v and "+
-		"(module = 'UDR Rating' or module = 'UDRRatingEngine') order by id", firstID, lastID)
-
-	rows, err := c.db.Query(q)
-	if err != nil {
-		log.Fatalf("ERR: Stats controller generates an error getting number of files: %v", err)
-	}
-
-	var id uint64
-	var row string
-	defer rows.Close()
-	for rows.Next() {
-		rowErr := rows.Scan(&id, &row)
-		if rowErr != nil {
-			log.Fatalf("ERR: Stats controller generates an error while scanning a row: %v", err)
-		}
-
-		if InvalidRatesRxp.MatchString(row) {
-			continue
-		}
-
-		if fs := RateRxp.FindString(row); fs != "" {
-			fsv := RateValRxp.FindString(fs)
-
-			r, err2 := strconv.ParseFloat(fsv, 32)
-			if err2 == nil {
-				*rates = append(*rates, float32(r))
-			}
-		}
-	}
-
-	err = rows.Err()
-	if err != nil {
-		log.Fatalf("WARNING: Stats controller generates an error: %v", err)
-	}
 }
 
 // numOfFileProcessed returns the number of UDR files shown completed in the

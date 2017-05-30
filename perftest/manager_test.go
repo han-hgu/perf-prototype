@@ -3,6 +3,7 @@ package perftest
 import (
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 )
@@ -26,7 +27,11 @@ func (*mockStatsController) UpdateDBParameters(dbname string, dbp *DBParam) erro
 	return nil
 }
 
-func (*mockStatsController) TrackKPI(Result) {
+func (*mockStatsController) TrackKPI(wg *sync.WaitGroup, dbname string, cpu *float32, lr *uint64, lw *uint64, pr *uint64) {
+	if wg != nil {
+		defer wg.Done()
+	}
+	return
 }
 
 func TestCreate(t *testing.T) {

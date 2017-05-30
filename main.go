@@ -13,6 +13,10 @@ func main() {
 	tr := time.Time{}
 	fmt.Println("tr", tr)
 	sc := stats.CreateController(&statsDBConf)
+	sc.TrackKPI("abc")
+}
+
+
 
 	q := fmt.Sprintf("select '0001-01-01 00:00:00 +0000 UTC'")
 	//q := fmt.Sprintf("CONVERT(datetime, 0)")

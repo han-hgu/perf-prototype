@@ -14,24 +14,37 @@ type Params interface {
 	CollectionInterval() string
 	DBConfig() *DBConf
 	AppConfig() *AppConf
+	ChartTitle() string
 }
 
 // Result interface to abstract out results
 type Result interface {
 	Result() *TestResult
 	AddAppServerCPU(float32)
+	AddDBCPU(float32)
 	AddAppServerMem(float32)
-	AddDBServerCPU(float32)
-	AddDBServerMem(float32)
+	AddLogicalReads(v uint64)
+	AddLogicalWrites(v uint64)
+	AddPhysicalReads(v uint64)
+	FetchDBLReads() []uint64
+	FetchDBLWrites() []uint64
+	FetchDBPReads() []uint64
 	AppServerStats() *GenericStats
-	DBServerStats() *GenericStats
+	DBServerStats() *DBStats
 	TestID() string
+	ChartTitle() string
 }
 
 // TestInfo stores all the test related information
 type TestInfo struct {
 	Params Params
 	Result Result
+}
+
+// perfMonStats to hold the stats from perfmon
+type PerfMonStats struct {
+	Mem float32 `json:"mem"`
+	CPU float32 `json:"cpu"`
 }
 
 // DBConf for database connection information
@@ -41,17 +54,17 @@ type DBConf struct {
 	Database string `json:"db_name"`
 	UID      string `json:"uid"`
 	Pwd      string `json:"password"`
+	URL      string `json:"perfmon_url"`
 }
 
-// perfMonAppStats to hold the stats from perfmon
-type perfMonAppStats struct {
-	Mem float32 `json:"mem"`
-	CPU float32 `json:"cpu"`
+// ChartConf for the configuration of how the data would be plotted
+type ChartConf struct {
+	Title string `json:"title"`
 }
 
 // AppConf for perfmon url
 type AppConf struct {
-	URL string `json:"url"`
+	URL string `json:"perfmon_url"`
 }
 
 // TestParams to hold common test parameters for all test types
@@ -59,6 +72,7 @@ type TestParams struct {
 	ID             string            `json:"-"`
 	DBConf         DBConf            `json:"db_config"`
 	AppConf        AppConf           `json:"app_config"`
+	ChartConf      ChartConf         `json:"chart_config"`
 	AdditionalInfo map[string]string `json:"additional_info"`
 	Kwords         map[string]string `json:"keywords"`
 	DbController   iController       `json:"-"`
@@ -98,6 +112,11 @@ func (tp *TestParams) DBConfig() *DBConf {
 // AppConfig gets the app server information
 func (tp *TestParams) AppConfig() *AppConf {
 	return &(tp.AppConf)
+}
+
+// ChartTitle gets the title for chart
+func (tp *TestParams) ChartTitle() string {
+	return tp.ChartConf.Title
 }
 
 // DBIDTracker keeps track of the last database table IDs examined
@@ -140,12 +159,25 @@ type DBParam struct {
 	CompatibilityLevel uint8 `json:"compatibility_level"`
 }
 
-// genericStats for CPU and memory
+// GenericStats for CPU and memory
 type GenericStats struct {
-	CPU       []float32 `json:"cpu(%)"`
+	CPU       []float32 `json:"cpu(%),omitempty"`
 	CPUMaxium float32   `json:"cpu_max(%)"`
-	Mem       []float32 `json:"mem(%)"`
+	Mem       []float32 `json:"mem(%),omitempty"`
 	MemMaxium float32   `json:"mem_max(%)"`
+}
+
+type DBStats struct {
+	GenericStats
+	LReadsBase   uint64   `json:"-"`
+	LReadsTotal  uint64   `json:"logical_reads_total"`
+	LReads       []uint64 `json:"logical_reads,omitempty"`
+	LWritesBase  uint64   `json:"-"`
+	LWritesTotal uint64   `json:"logical_writes_total"`
+	LWrites      []uint64 `json:"logical_writes,omitempty"`
+	PReadsBase   uint64   `json:"-"`
+	PReadsTotal  uint64   `json:"physical_reads_total"`
+	PReads       []uint64 `json:"physical_reads,omitempty"`
 }
 
 // TestResult to store generic results
@@ -154,16 +186,26 @@ type TestResult struct {
 	StartTime      time.Time         `json:"start_date"`
 	Duration       string            `json:"test_duration,omitempty"`
 	Done           bool              `json:"test_completed"`
-	AdditionalInfo map[string]string `json:"additional_info"`
+	AdditionalInfo map[string]string `json:"additional_info,omitempty"`
 	Keywords       map[string]string `json:"keywords,omitempty"`
 	AppStats       GenericStats      `json:"app_server_stats"`
-	DBStats        GenericStats      `json:"database_server_stats"`
+	DBStats        DBStats           `json:"database_server_stats"`
 	DBParam        DBParam           `json:"database_parameters"`
+	CTitle         string            `json:"-"`
 }
 
 // TestID to get the test ID
 func (rr *TestResult) TestID() string {
 	return rr.ID
+}
+
+// ChartTitle returns the title for the chart
+func (rr *TestResult) ChartTitle() string {
+	if rr.CTitle == "" {
+		return rr.TestID()
+	}
+
+	return rr.CTitle
 }
 
 // Result to integrate RatingResult to Result interface
@@ -183,6 +225,17 @@ func (rr *TestResult) AddAppServerCPU(v float32) {
 	}
 }
 
+func (rr *TestResult) AddDBCPU(v float32) {
+	if rr.DBServerStats().CPU == nil {
+		rr.DBServerStats().CPU = make([]float32, 0)
+	}
+
+	rr.DBServerStats().CPU = append(rr.DBServerStats().CPU, v)
+	if rr.DBServerStats().CPUMaxium < v {
+		rr.DBServerStats().CPUMaxium = v
+	}
+}
+
 // AddAppServerMem adds a memory sample for the app server
 func (rr *TestResult) AddAppServerMem(v float32) {
 	if rr.AppStats.Mem == nil {
@@ -193,6 +246,101 @@ func (rr *TestResult) AddAppServerMem(v float32) {
 	if rr.AppStats.MemMaxium < v {
 		rr.AppStats.MemMaxium = v
 	}
+}
+
+func (rr *TestResult) AddLogicalReads(v uint64) {
+	if rr.DBStats.LReads == nil {
+		rr.DBStats.LReads = make([]uint64, 0)
+	}
+
+	rr.DBStats.LReads = append(rr.DBStats.LReads, v)
+	rr.DBStats.LReadsTotal += v
+}
+
+func (rr *TestResult) AddLogicalWrites(v uint64) {
+	if rr.DBStats.LWrites == nil {
+		rr.DBStats.LWrites = make([]uint64, 0)
+	}
+
+	rr.DBStats.LWrites = append(rr.DBStats.LWrites, v)
+	rr.DBStats.LWritesTotal += v
+}
+
+func (rr *TestResult) AddPhysicalReads(v uint64) {
+	if rr.DBStats.PReads == nil {
+		rr.DBStats.PReads = make([]uint64, 0)
+	}
+
+	rr.DBStats.PReads = append(rr.DBStats.PReads, v)
+	rr.DBStats.PReadsTotal += v
+}
+
+func (rr *TestResult) LReadsBase() uint64 {
+	return rr.DBStats.LReadsBase
+}
+
+func (rr *TestResult) LWritesBase() uint64 {
+	return rr.DBStats.LWritesBase
+}
+
+func (rr *TestResult) PReadsBase() uint64 {
+	return rr.DBStats.PReadsBase
+}
+
+func (rr *TestResult) FetchDBLReads() []uint64 {
+	return rr.DBStats.LReads
+}
+
+func (rr *TestResult) FetchDBLWrites() []uint64 {
+	return rr.DBStats.LWrites
+}
+
+func (rr *TestResult) FetchDBPReads() []uint64 {
+	return rr.DBStats.PReads
+}
+
+func FetchAppServerCPUStats(r Result) []float32 {
+	return r.AppServerStats().CPU
+}
+
+func FetchAppServerMemStats(r Result) []float32 {
+	return r.AppServerStats().Mem
+}
+
+func FetchDBServerCPUStats(r Result) []float32 {
+	return r.DBServerStats().CPU
+}
+
+func FetchDBServerMemStats(r Result) []float32 {
+	return r.DBServerStats().Mem
+}
+
+func FetchDBServerLReads(r Result) []uint64 {
+	return r.DBServerStats().LReads
+}
+
+func FetchDBServerPReads(r Result) []uint64 {
+	return r.DBServerStats().PReads
+}
+
+func FetchDBServerLWrites(r Result) []uint64 {
+	return r.DBServerStats().LWrites
+}
+
+func FetchRates(r Result) []float32 {
+	rr, ok := r.(*RatingResult)
+	if !ok {
+		panic("ERR: Fetch rates from a non-rating result")
+	}
+	return rr.Rates
+}
+
+func FetchUDRProcessedTrend(r Result) []float32 {
+	rr, ok := r.(*RatingResult)
+	if !ok {
+		panic("ERR: Fetch rates from a non-rating result")
+	}
+	return rr.UDRProcessedTrend
 }
 
 // AppServerStats to return the stats object for app server
@@ -225,7 +373,7 @@ func (rr *TestResult) AddDBServerMem(v float32) {
 }
 
 // DBServerStats to return the stats object for db server
-func (rr *TestResult) DBServerStats() *GenericStats {
+func (rr *TestResult) DBServerStats() *DBStats {
 	return &(rr.DBStats)
 }
 
@@ -235,7 +383,7 @@ type RatingResult struct {
 	Rates                 []float32 `json:"udr_rates,omitempty"`
 	MinRate               float32   `json:"-"`
 	AvgRate               float32   `json:"udr_rate_avg,omitempty"`
-	UDRProcessedTrend     []uint64  `json:"udr_created_trend"`
+	UDRProcessedTrend     []float32 `json:"udr_created_trend,omitempty"`
 	UDRProcessed          uint64    `json:"udr_created"`
 	UDRExceptionProcessed uint64    `json:"udr_exception_created"`
 	FilesCompleted        uint32    `json:"files_completed"`

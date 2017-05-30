@@ -463,6 +463,55 @@ if reflect.TypeOf(t) != reflect.TypeOf(s.info[uuid].Result) {
    "owner_name": "Momentum_Retail"
 }
 
+func (c *Controller) getRatesFromEventLog(wg *sync.WaitGroup, firstID, lastID uint64, rates *[]float32) {
+	if wg != nil {
+		defer wg.Done()
+	}
+
+	var (
+		InvalidRatesRxp = regexp.MustCompile("UDRs in 0.0 seconds")
+		RateRxp         = regexp.MustCompile("([0-9]+)*.([0-9]+)* UDRs/second|([0-9]+)* UDRs/second")
+		RateValRxp      = regexp.MustCompile("([0-9]+)*.([0-9]+)*")
+	)
+
+	q := fmt.Sprintf("select id, result from "+
+		"eventlog where id > %v and id <= %v and "+
+		"(module = 'UDR Rating' or module = 'UDRRatingEngine') order by id", firstID, lastID)
+
+	rows, err := c.db.Query(q)
+	if err != nil {
+		log.Fatalf("ERR: Stats controller generates an error getting number of files: %v", err)
+	}
+
+	var id uint64
+	var row string
+	defer rows.Close()
+	for rows.Next() {
+		rowErr := rows.Scan(&id, &row)
+		if rowErr != nil {
+			log.Fatalf("ERR: Stats controller generates an error while scanning a row: %v", err)
+		}
+
+		if InvalidRatesRxp.MatchString(row) {
+			continue
+		}
+
+		if fs := RateRxp.FindString(row); fs != "" {
+			fsv := RateValRxp.FindString(fs)
+
+			r, err2 := strconv.ParseFloat(fsv, 32)
+			if err2 == nil {
+				*rates = append(*rates, float32(r))
+			}
+		}
+	}
+
+	err = rows.Err()
+	if err != nil {
+		log.Fatalf("WARNING: Stats controller generates an error: %v", err)
+	}
+}
+
 */
 
 package main

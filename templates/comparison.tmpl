@@ -9,10 +9,13 @@
 
       // Set a callback to run when the Google Visualization API is loaded.
       google.charts.setOnLoadCallback(drawRatingChart);
+      google.charts.setOnLoadCallback(drawRatingTotalChart);
       google.charts.setOnLoadCallback(drawAppCPUChart);
       google.charts.setOnLoadCallback(drawAppMemChart);
       google.charts.setOnLoadCallback(drawDBCPUChart);
-      google.charts.setOnLoadCallback(drawDBMemChart);
+      google.charts.setOnLoadCallback(drawLReadsChart);
+      google.charts.setOnLoadCallback(drawLWritesChart);
+      google.charts.setOnLoadCallback(drawPReadsChart);
 
       function drawAppCPUChart() {
           {{with .AppCPU}}
@@ -31,14 +34,14 @@
 
           // Set chart options
           var options = {'title':{{.Title}},
-                         'width':1800,
+                         'width':2000,
                          'height':300,
                          'titleTextStyle': {
     					     'color': '#0020C2',
     						 'fontSize': 20,
     						 'bold': true},
     					 'hAxis': {
-    				         'title': 'Time'
+    				         'title': 'Collection Intervals'
     				     },
     					 'vAxis': {
     				         'title': 'CPU (%)'
@@ -73,14 +76,14 @@
 
           // Set chart options
           var options = {'title':{{.Title}},
-                         'width':1800,
+                         'width':2000,
                          'height':300,
                          'titleTextStyle': {
     					     'color': '#0020C2',
     						 'fontSize': 20,
     						 'bold': true},
     					 'hAxis': {
-    				         'title': 'Time'
+    				         'title': 'Collection Intervals'
     				     },
     					 'vAxis': {
     				         'title': 'Mem (%)'
@@ -115,14 +118,14 @@
 
           // Set chart options
           var options = {'title':{{.Title}},
-                         'width':1800,
+                         'width':2000,
                          'height':300,
                          'titleTextStyle': {
     					     'color': '#0020C2',
     						 'fontSize': 20,
     						 'bold': true},
     					 'hAxis': {
-    				         'title': 'Time'
+    				         'title': 'Collection Intervals'
     				     },
     					 'vAxis': {
     				         'title': 'CPU (%)'
@@ -140,8 +143,8 @@
           chart.draw(data, options);
       }
 
-      function drawDBMemChart() {
-          {{with .DBMem}}
+      function drawLReadsChart() {
+          {{with .LReads}}
           // Create the data table.
           var data = new google.visualization.DataTable();
 
@@ -157,17 +160,17 @@
 
           // Set chart options
           var options = {'title':{{.Title}},
-                         'width':1800,
+                         'width':2000,
                          'height':300,
                          'titleTextStyle': {
     					     'color': '#0020C2',
     						 'fontSize': 20,
     						 'bold': true},
     					 'hAxis': {
-    				         'title': 'Time'
+    				         'title': 'Collection Intervals'
     				     },
     					 'vAxis': {
-    				         'title': 'Mem (%)'
+    				         'title': 'Logical Reads'
     				     },
     					 'crosshair': {
     			             'color': '#000',
@@ -178,12 +181,96 @@
           {{end}}
 
           // Instantiate and draw our chart, passing in some options.
-          var chart = new google.visualization.LineChart(document.getElementById('chart_div_db_mem'));
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_db_lreads'));
+          chart.draw(data, options);
+      }
+
+      function drawLWritesChart() {
+          {{with .LWrites}}
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                         'width':2000,
+                         'height':300,
+                         'titleTextStyle': {
+    					     'color': '#0020C2',
+    						 'fontSize': 20,
+    						 'bold': true},
+    					 'hAxis': {
+    				         'title': 'Collection Intervals'
+    				     },
+    					 'vAxis': {
+    				         'title': 'Logical Writes'
+    				     },
+    					 'crosshair': {
+    			             'color': '#000',
+                             'trigger': 'selection',
+                         },
+    					 'legend': {'position': 'center'}};
+
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_db_lwrites'));
+          chart.draw(data, options);
+      }
+
+      function drawPReadsChart() {
+          {{with .PReads}}
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                         'width':2000,
+                         'height':300,
+                         'titleTextStyle': {
+    					     'color': '#0020C2',
+    						 'fontSize': 20,
+    						 'bold': true},
+    					 'hAxis': {
+    				         'title': 'Collection Intervals'
+    				     },
+    					 'vAxis': {
+    				         'title': 'Physical Reads'
+    				     },
+    					 'crosshair': {
+    			             'color': '#000',
+                             'trigger': 'selection',
+                         },
+    					 'legend': {'position': 'center'}};
+
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_db_preads'));
           chart.draw(data, options);
       }
 
       function drawRatingChart() {
-        {{with .UDR}}
+        {{with .UDRRate}}
 
         // Create the data table.
         var data = new google.visualization.DataTable();
@@ -200,14 +287,14 @@
 
         // Set chart options
         var options = {'title':{{.Title}},
-                       'width':1800,
+                       'width':2000,
                        'height':300,
                        'titleTextStyle': {
                            'color': '#0020C2',
                            'fontSize': 20,
                            'bold': true},
                        'hAxis': {
-                           'title': 'Time'
+                           'title': 'Collection Intervals'
                        },
                        'vAxis': {
                            'title': 'UDRs/sec'
@@ -224,15 +311,60 @@
         var chart = new google.visualization.LineChart(document.getElementById('chart_div_udr'));
         chart.draw(data, options);
       }
+
+      function drawRatingTotalChart() {
+        {{with .UDRAbsolute}}
+
+        // Create the data table.
+        var data = new google.visualization.DataTable();
+
+        {{range .IDs}}
+        data.addColumn('number', {{.}});
+        {{end}}
+
+        data.addRows([
+            {{range .Results}}
+            [{{range .}}{{.}},{{end}}],
+            {{end}}
+        ]);
+
+        // Set chart options
+        var options = {'title':{{.Title}},
+                       'width':2000,
+                       'height':300,
+                       'titleTextStyle': {
+                           'color': '#0020C2',
+                           'fontSize': 20,
+                           'bold': true},
+                       'hAxis': {
+                           'title': 'Collection Intervals'
+                       },
+                       'vAxis': {
+                           'title': 'UDRs'
+                       },
+                       'crosshair': {
+                           'color': '#000',
+                           'trigger': 'selection',
+                       },
+                       'legend': {'position': 'center'}};
+
+        {{end}}
+
+        // Instantiate and draw our chart, passing in some options.
+        var chart = new google.visualization.LineChart(document.getElementById('chart_div_udr_total'));
+        chart.draw(data, options);
+      }
     </script>
   </head>
 
   <body>
-    <!--Div that will hold the pie chart-->
     <div id="chart_div_udr"></div>
+    <div id="chart_div_udr_total"></div>
     <div id="chart_div_app_cpu"></div>
     <div id="chart_div_app_mem"></div>
     <div id="chart_div_db_cpu"></div>
-    <div id="chart_div_db_mem"></div>
+    <div id="chart_div_db_lreads"></div>
+    <div id="chart_div_db_lwrites"></div>
+    <div id="chart_div_db_preads"></div>
   </body>
 </html>
