@@ -32,6 +32,7 @@ type Result interface {
 	AppServerStats() *GenericStats
 	DBServerStats() *DBStats
 	TestID() string
+	CollectionInterval() string
 	ChartTitle() string
 }
 
@@ -41,7 +42,7 @@ type TestInfo struct {
 	Result Result
 }
 
-// perfMonStats to hold the stats from perfmon
+// PerfMonStats to hold the stats from perfmon
 type PerfMonStats struct {
 	Mem float32 `json:"mem"`
 	CPU float32 `json:"cpu"`
@@ -144,8 +145,6 @@ type RatingParams struct {
 	UseExistingFile     bool     `json:"use_existing_file"`
 	DropLocation        string   `json:"drop_location"`
 	FilenamePrefix      string   `json:"filename_prefix"`
-
-	DBIDTracker *DBIDTracker `json:"-"`
 }
 
 // BillingParams holds billing test parameters
@@ -154,8 +153,8 @@ type BillingParams struct {
 	OwnerName string `json:"owner_name"`
 }
 
-// DBParam stores the db parameters which could impact performance
-type DBParam struct {
+// DBParams stores the db parameters which could impact performance
+type DBParams struct {
 	CompatibilityLevel uint8 `json:"compatibility_level"`
 }
 
@@ -167,6 +166,7 @@ type GenericStats struct {
 	MemMaxium float32   `json:"mem_max(%)"`
 }
 
+// DBStats holds database stats
 type DBStats struct {
 	GenericStats
 	LReadsBase   uint64   `json:"-"`
@@ -183,6 +183,7 @@ type DBStats struct {
 // TestResult to store generic results
 type TestResult struct {
 	ID             string            `json:"ID"`
+	CInterval      string            `json:"collection_interval"`
 	StartTime      time.Time         `json:"start_date"`
 	Duration       string            `json:"test_duration,omitempty"`
 	Done           bool              `json:"test_completed"`
@@ -190,143 +191,154 @@ type TestResult struct {
 	Keywords       map[string]string `json:"keywords,omitempty"`
 	AppStats       GenericStats      `json:"app_server_stats"`
 	DBStats        DBStats           `json:"database_server_stats"`
-	DBParam        DBParam           `json:"database_parameters"`
+	DBParams       DBParams          `json:"database_parameters"`
 	CTitle         string            `json:"-"`
 }
 
 // TestID to get the test ID
-func (rr *TestResult) TestID() string {
-	return rr.ID
+func (tr *TestResult) TestID() string {
+	return tr.ID
+}
+
+// CollectionInterval returns the collection interval from TestResult
+func (tr *TestResult) CollectionInterval() string {
+	return tr.CInterval
 }
 
 // ChartTitle returns the title for the chart
-func (rr *TestResult) ChartTitle() string {
-	if rr.CTitle == "" {
-		return rr.TestID()
+func (tr *TestResult) ChartTitle() string {
+	if tr.CTitle == "" {
+		return tr.TestID()
 	}
 
-	return rr.CTitle
+	return tr.CTitle
 }
 
 // Result to integrate RatingResult to Result interface
-func (rr *TestResult) Result() *TestResult {
-	return rr
+func (tr *TestResult) Result() *TestResult {
+	return tr
 }
 
 // AddAppServerCPU adds a cpu sample for the app server
-func (rr *TestResult) AddAppServerCPU(v float32) {
-	if rr.AppStats.CPU == nil {
-		rr.AppStats.CPU = make([]float32, 0)
+func (tr *TestResult) AddAppServerCPU(v float32) {
+	if tr.AppStats.CPU == nil {
+		tr.AppStats.CPU = make([]float32, 0)
 	}
 
-	rr.AppStats.CPU = append(rr.AppStats.CPU, v)
-	if rr.AppStats.CPUMaxium < v {
-		rr.AppStats.CPUMaxium = v
+	tr.AppStats.CPU = append(tr.AppStats.CPU, v)
+	if tr.AppStats.CPUMaxium < v {
+		tr.AppStats.CPUMaxium = v
 	}
 }
 
-func (rr *TestResult) AddDBCPU(v float32) {
-	if rr.DBServerStats().CPU == nil {
-		rr.DBServerStats().CPU = make([]float32, 0)
+// AddDBCPU adds a cpu sample for the database
+func (tr *TestResult) AddDBCPU(v float32) {
+	if tr.DBStats.CPU == nil {
+		tr.DBStats.CPU = make([]float32, 0)
 	}
 
-	rr.DBServerStats().CPU = append(rr.DBServerStats().CPU, v)
-	if rr.DBServerStats().CPUMaxium < v {
-		rr.DBServerStats().CPUMaxium = v
+	tr.DBStats.CPU = append(tr.DBStats.CPU, v)
+	if tr.DBStats.CPUMaxium < v {
+		tr.DBStats.CPUMaxium = v
 	}
 }
 
 // AddAppServerMem adds a memory sample for the app server
-func (rr *TestResult) AddAppServerMem(v float32) {
-	if rr.AppStats.Mem == nil {
-		rr.AppStats.Mem = make([]float32, 0)
+func (tr *TestResult) AddAppServerMem(v float32) {
+	if tr.AppStats.Mem == nil {
+		tr.AppStats.Mem = make([]float32, 0)
 	}
 
-	rr.AppStats.Mem = append(rr.AppStats.Mem, v)
-	if rr.AppStats.MemMaxium < v {
-		rr.AppStats.MemMaxium = v
+	tr.AppStats.Mem = append(tr.AppStats.Mem, v)
+	if tr.AppStats.MemMaxium < v {
+		tr.AppStats.MemMaxium = v
 	}
 }
 
-func (rr *TestResult) AddLogicalReads(v uint64) {
-	if rr.DBStats.LReads == nil {
-		rr.DBStats.LReads = make([]uint64, 0)
+// AddLogicalReads adds the number of logical reads collected from the interval
+// to the test result
+func (tr *TestResult) AddLogicalReads(v uint64) {
+	if tr.DBStats.LReads == nil {
+		tr.DBStats.LReads = make([]uint64, 0)
 	}
 
-	rr.DBStats.LReads = append(rr.DBStats.LReads, v)
-	rr.DBStats.LReadsTotal += v
+	tr.DBStats.LReads = append(tr.DBStats.LReads, v)
+	tr.DBStats.LReadsTotal += v
 }
 
-func (rr *TestResult) AddLogicalWrites(v uint64) {
-	if rr.DBStats.LWrites == nil {
-		rr.DBStats.LWrites = make([]uint64, 0)
+// AddLogicalWrites adds the number of logical writes collected from the interval
+// to the test result
+func (tr *TestResult) AddLogicalWrites(v uint64) {
+	if tr.DBStats.LWrites == nil {
+		tr.DBStats.LWrites = make([]uint64, 0)
 	}
 
-	rr.DBStats.LWrites = append(rr.DBStats.LWrites, v)
-	rr.DBStats.LWritesTotal += v
+	tr.DBStats.LWrites = append(tr.DBStats.LWrites, v)
+	tr.DBStats.LWritesTotal += v
 }
 
-func (rr *TestResult) AddPhysicalReads(v uint64) {
-	if rr.DBStats.PReads == nil {
-		rr.DBStats.PReads = make([]uint64, 0)
+// AddPhysicalReads adds the number of physical reads collected from the interval
+// to the test result
+func (tr *TestResult) AddPhysicalReads(v uint64) {
+	if tr.DBStats.PReads == nil {
+		tr.DBStats.PReads = make([]uint64, 0)
 	}
 
-	rr.DBStats.PReads = append(rr.DBStats.PReads, v)
-	rr.DBStats.PReadsTotal += v
+	tr.DBStats.PReads = append(tr.DBStats.PReads, v)
+	tr.DBStats.PReadsTotal += v
 }
 
-func (rr *TestResult) LReadsBase() uint64 {
-	return rr.DBStats.LReadsBase
+// FetchDBLReads fetches the logical reads
+func (tr *TestResult) FetchDBLReads() []uint64 {
+	return tr.DBStats.LReads
 }
 
-func (rr *TestResult) LWritesBase() uint64 {
-	return rr.DBStats.LWritesBase
+// FetchDBLWrites fetches the logical writes
+func (tr *TestResult) FetchDBLWrites() []uint64 {
+	return tr.DBStats.LWrites
 }
 
-func (rr *TestResult) PReadsBase() uint64 {
-	return rr.DBStats.PReadsBase
+// FetchDBPReads fetches the phyiscal reads
+func (tr *TestResult) FetchDBPReads() []uint64 {
+	return tr.DBStats.PReads
 }
 
-func (rr *TestResult) FetchDBLReads() []uint64 {
-	return rr.DBStats.LReads
-}
-
-func (rr *TestResult) FetchDBLWrites() []uint64 {
-	return rr.DBStats.LWrites
-}
-
-func (rr *TestResult) FetchDBPReads() []uint64 {
-	return rr.DBStats.PReads
-}
-
+// FetchAppServerCPUStats fetches the CPU stats of app server
 func FetchAppServerCPUStats(r Result) []float32 {
 	return r.AppServerStats().CPU
 }
 
+// FetchAppServerMemStats fetches the mem stats of app server
 func FetchAppServerMemStats(r Result) []float32 {
 	return r.AppServerStats().Mem
 }
 
+// FetchDBServerCPUStats fetches the CPU stats of database server
 func FetchDBServerCPUStats(r Result) []float32 {
 	return r.DBServerStats().CPU
 }
 
+// FetchDBServerMemStats fetches the mem stats of database server
 func FetchDBServerMemStats(r Result) []float32 {
 	return r.DBServerStats().Mem
 }
 
+// FetchDBServerLReads fetches the logical reads of database server
 func FetchDBServerLReads(r Result) []uint64 {
 	return r.DBServerStats().LReads
 }
 
+// FetchDBServerPReads fetches the physical reads
 func FetchDBServerPReads(r Result) []uint64 {
 	return r.DBServerStats().PReads
 }
 
+// FetchDBServerLWrites fetches the logical writes
 func FetchDBServerLWrites(r Result) []uint64 {
 	return r.DBServerStats().LWrites
 }
 
+// FetchRates fetches the rates
 func FetchRates(r Result) []float32 {
 	rr, ok := r.(*RatingResult)
 	if !ok {
@@ -335,6 +347,7 @@ func FetchRates(r Result) []float32 {
 	return rr.Rates
 }
 
+// FetchUDRProcessedTrend fetches the udr processed trend
 func FetchUDRProcessedTrend(r Result) []float32 {
 	rr, ok := r.(*RatingResult)
 	if !ok {
@@ -344,37 +357,37 @@ func FetchUDRProcessedTrend(r Result) []float32 {
 }
 
 // AppServerStats to return the stats object for app server
-func (rr *TestResult) AppServerStats() *GenericStats {
-	return &(rr.AppStats)
+func (tr *TestResult) AppServerStats() *GenericStats {
+	return &(tr.AppStats)
 }
 
 // AddDBServerCPU adds a cpu sample for the database
-func (rr *TestResult) AddDBServerCPU(v float32) {
-	if rr.DBStats.CPU == nil {
-		rr.DBStats.CPU = make([]float32, 0)
+func (tr *TestResult) AddDBServerCPU(v float32) {
+	if tr.DBStats.CPU == nil {
+		tr.DBStats.CPU = make([]float32, 0)
 	}
 
-	rr.DBStats.CPU = append(rr.DBStats.CPU, v)
-	if rr.DBStats.CPUMaxium < v {
-		rr.DBStats.CPUMaxium = v
+	tr.DBStats.CPU = append(tr.DBStats.CPU, v)
+	if tr.DBStats.CPUMaxium < v {
+		tr.DBStats.CPUMaxium = v
 	}
 }
 
 // AddDBServerMem adds a memory sample for the database
-func (rr *TestResult) AddDBServerMem(v float32) {
-	if rr.DBStats.Mem == nil {
-		rr.DBStats.Mem = make([]float32, 0)
+func (tr *TestResult) AddDBServerMem(v float32) {
+	if tr.DBStats.Mem == nil {
+		tr.DBStats.Mem = make([]float32, 0)
 	}
 
-	rr.DBStats.Mem = append(rr.DBStats.Mem, v)
-	if rr.DBStats.MemMaxium < v {
-		rr.DBStats.MemMaxium = v
+	tr.DBStats.Mem = append(tr.DBStats.Mem, v)
+	if tr.DBStats.MemMaxium < v {
+		tr.DBStats.MemMaxium = v
 	}
 }
 
 // DBServerStats to return the stats object for db server
-func (rr *TestResult) DBServerStats() *DBStats {
-	return &(rr.DBStats)
+func (tr *TestResult) DBServerStats() *DBStats {
+	return &(tr.DBStats)
 }
 
 // RatingResult to save the rate information

@@ -23,7 +23,7 @@ func (*mockStatsController) UpdateBaselineIDs(dbIDTracker *DBIDTracker) error {
 	return nil
 }
 
-func (*mockStatsController) UpdateDBParameters(dbname string, dbp *DBParam) error {
+func (*mockStatsController) UpdateDBParameters(dbname string, dbp *DBParams) error {
 	return nil
 }
 

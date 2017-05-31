@@ -9,7 +9,7 @@ import (
 
 // UpdateDBParameters updates the database KPIs and configuration settings
 // related to the performance
-func (c *Controller) UpdateDBParameters(dbname string, dbp *perftest.DBParam) error {
+func (c *Controller) UpdateDBParameters(dbname string, dbp *perftest.DBParams) error {
 	dbp.CompatibilityLevel = c.compatiblityLevel(dbname)
 	return nil
 }
@@ -27,13 +27,12 @@ func (c *Controller) TrackKPI(wg *sync.WaitGroup, dbname string, cpu *float32, l
 		defer wg.Done()
 	}
 
-	q := `SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
-	      ;WITH DB_CPU_Stats
+	q := `;WITH DB_CPU_Stats
 		  AS
 		  (
 		    SELECT DatabaseID, isnull(DB_Name(DatabaseID),
 				   case DatabaseID when 32767 then 'Internal ResourceDB' else CONVERT(varchar(255),DatabaseID)end) AS [DatabaseName],
-		           SUM(total_worker_time) AS [CPU_Time_Ms], SUM(total_logical_reads)  AS [Logical_Reads],
+		           SUM(total_worker_time) AS [CPU_Time_Ms], convert(bigint,SUM(total_logical_reads))  AS [Logical_Reads],
 		           SUM(total_logical_writes)  AS [Logical_Writes], SUM(total_logical_reads+total_logical_writes)  AS [Logical_IO],
 		           SUM(total_physical_reads)  AS [Physical_Reads], SUM(total_elapsed_time)  AS [Duration_MicroSec],
 		           SUM(total_clr_time)  AS [CLR_Time_MicroSec], SUM(total_rows)  AS [Rows_Returned],

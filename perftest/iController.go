@@ -6,6 +6,6 @@ type iController interface {
 	UpdateRatingResult(*TestInfo, *DBIDTracker) error
 	UpdateBillingResult(*TestInfo, *DBIDTracker) error
 	UpdateBaselineIDs(*DBIDTracker) error
-	UpdateDBParameters(string, *DBParam) error
+	UpdateDBParameters(string, *DBParams) error
 	TrackKPI(wg *sync.WaitGroup, dbname string, relativeCPU *float32, logicalReads *uint64, logicalWrites *uint64, physicalReads *uint64)
 }

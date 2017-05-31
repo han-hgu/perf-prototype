@@ -40,6 +40,7 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var trs []perftest.Result
+	var ci string
 	for _, v := range ids {
 		tr, e := Result(v)
 		if e != nil {
@@ -47,20 +48,28 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if ci == "" {
+			ci = tr.CollectionInterval()
+		} else if tr.CollectionInterval() != ci {
+			http.Error(w, "Unable to draw comparsion graph, test runs must have the same collection intervals", http.StatusBadRequest)
+		}
+
 		trs = append(trs, tr)
 	}
 
 	var df struct {
-		UDRRate     *templateDataFeed
-		AppCPU      *templateDataFeed
-		AppMem      *templateDataFeed
-		DBCPU       *templateDataFeed
-		UDRAbsolute *templateDataFeed
-		LReads      *templateDataFeedUint64
-		LWrites     *templateDataFeedUint64
-		PReads      *templateDataFeedUint64
+		CollectionInterval string
+		UDRRate            *templateDataFeed
+		AppCPU             *templateDataFeed
+		AppMem             *templateDataFeed
+		DBCPU              *templateDataFeed
+		UDRAbsolute        *templateDataFeed
+		LReads             *templateDataFeedUint64
+		LWrites            *templateDataFeedUint64
+		PReads             *templateDataFeedUint64
 	}
 
+	df.CollectionInterval = ci
 	df.UDRRate, _ = UDRRatesForTemplate(trs)
 	df.AppCPU, _ = AppCPUSamplesForTemplate(trs)
 	df.AppMem, _ = AppMemSamplesForTemplate(trs)

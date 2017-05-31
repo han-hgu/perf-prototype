@@ -65,6 +65,12 @@ func createWorker(tm *Manager, t Params) *worker {
 	var tinfo TestInfo
 	tinfo.Params = t
 	var tr TestResult
+	if t.CollectionInterval() == "" {
+		tr.CInterval = waitTime.String()
+	} else {
+		tr.CInterval = t.CollectionInterval()
+	}
+
 	tr.StartTime = time.Now()
 	tr.ID = t.TestID()
 	tr.CTitle = t.ChartTitle()
@@ -72,7 +78,7 @@ func createWorker(tm *Manager, t Params) *worker {
 	tr.AdditionalInfo = t.Info()
 	tr.Keywords = t.Keywords()
 
-	if e := w.sc.UpdateDBParameters(t.DBConfig().Database, &(tr.DBParam)); e != nil {
+	if e := w.sc.UpdateDBParameters(t.DBConfig().Database, &(tr.DBParams)); e != nil {
 		log.Fatalf("ERR: update system parameters failed: %v", e)
 	}
 
