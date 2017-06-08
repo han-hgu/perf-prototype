@@ -71,12 +71,14 @@ func createWorker(tm *Manager, t Params) *worker {
 		tr.CInterval = t.CollectionInterval()
 	}
 
+	// copy parameters to results
 	tr.StartTime = time.Now()
 	tr.ID = t.TestID()
 	tr.CTitle = t.ChartTitle()
 	tr.Done = false
-	tr.AdditionalInfo = t.Info()
+	tr.Cmt = t.Comment()
 	tr.Keywords = t.Keywords()
+	tr.DBConfig = t.DBConfig()
 
 	if e := w.sc.UpdateDBParameters(t.DBConfig().Database, &(tr.DBParams)); e != nil {
 		log.Fatalf("ERR: update system parameters failed: %v", e)
@@ -84,7 +86,7 @@ func createWorker(tm *Manager, t Params) *worker {
 
 	switch t.(type) {
 	default:
-		panic("ERR: Unknown test parameter type while creating worker thread")
+		panic("ERR: Unknown test type while creating worker thread")
 
 	case *RatingParams:
 		w.tt = RATING
@@ -95,14 +97,17 @@ func createWorker(tm *Manager, t Params) *worker {
 		rr.Rates = make([]float32, 0)
 		rr.TestResult = tr
 		tinfo.Result = rr
+		rr.Type = "rating"
 
 	case *BillingParams:
 		w.tt = BILLING
 
 		rr := new(BillingResult)
+		rr.OwnerName = t.(*BillingParams).OwnerName
 		rr.UserPackageBillRate = make([]uint32, 0)
 		rr.TestResult = tr
 		tinfo.Result = rr
+		rr.Type = "billing"
 	}
 
 	w.ti = &tinfo
@@ -146,9 +151,28 @@ func (w *worker) TrackKPI() {
 	wg.Wait()
 	log.Printf("INFO: DB KPI takes %v to complete.\n", time.Since(kpiStart))
 
-	w.ti.Result.AddLogicalReads(*lreads - w.ti.Result.DBServerStats().LReadsBase - w.ti.Result.DBServerStats().LReadsTotal)
-	w.ti.Result.AddLogicalWrites(*lwrites - w.ti.Result.DBServerStats().LWritesBase - w.ti.Result.DBServerStats().LWritesTotal)
-	w.ti.Result.AddPhysicalReads(*preads - w.ti.Result.DBServerStats().PReadsBase - w.ti.Result.DBServerStats().PReadsTotal)
+	if *lreads >= w.ti.Result.DBServerStats().LReadsBase {
+		w.ti.Result.AddLogicalReads(*lreads - w.ti.Result.DBServerStats().LReadsBase)
+	} else {
+		// Reset the base since the system resets the stats in dm_exec_query_stats
+		w.ti.Result.AddLogicalReads(0)
+	}
+	w.ti.Result.DBServerStats().LReadsBase = *lreads
+
+	if *lwrites >= w.ti.Result.DBServerStats().LWritesBase {
+		w.ti.Result.AddLogicalWrites(*lwrites - w.ti.Result.DBServerStats().LWritesBase)
+	} else {
+		w.ti.Result.AddLogicalWrites(0)
+	}
+	w.ti.Result.DBServerStats().LWritesBase = *lwrites
+
+	if *preads >= w.ti.Result.DBServerStats().PReadsBase {
+		w.ti.Result.AddPhysicalReads(*preads - w.ti.Result.DBServerStats().PReadsBase)
+	} else {
+		w.ti.Result.AddPhysicalReads(0)
+	}
+	w.ti.Result.DBServerStats().PReadsBase = *preads
+
 	w.ti.Result.AddDBCPU((*dbsysCPU) * (*dbCPU) / 100)
 	w.ti.Result.AddAppServerCPU(*appCPU)
 	w.ti.Result.AddAppServerMem(*appMem)

@@ -12,6 +12,11 @@ type store struct {
 	info map[string]*TestInfo
 }
 
+// laod all meta data into memory
+func (s *store) initialize() {
+
+}
+
 func (s *store) add(uuid string, t *TestInfo) error {
 	if s.info == nil {
 		s.info = make(map[string]*TestInfo)
@@ -40,6 +45,21 @@ func (s *store) get(uuid string) (TestInfo, error) {
 	}
 
 	return *s.info[uuid], nil
+}
+
+func (s *store) getAll() []Metadata {
+	r := make([]Metadata, 0)
+	if s.info == nil {
+		return nil
+	}
+
+	s.RLock()
+	defer s.RUnlock()
+	for _, ti := range s.info {
+		r = append(r, ti.Result.MetaData())
+	}
+
+	return r
 }
 
 func (s *store) update(uuid string, t *TestInfo) error {

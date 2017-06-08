@@ -16,6 +16,12 @@ type httpStats struct {
 	InvalidBody uint64
 }
 
+func metaDataRetriever(w http.ResponseWriter, r *http.Request) {
+	mds := MetaData()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(mds)
+}
+
 // statsHandler
 func statsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -63,7 +69,7 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 		AppCPU             *templateDataFeed
 		AppMem             *templateDataFeed
 		DBCPU              *templateDataFeed
-		UDRAbsolute        *templateDataFeed
+		UDRAbsolute        *templateDataFeedUint64
 		LReads             *templateDataFeedUint64
 		LWrites            *templateDataFeedUint64
 		PReads             *templateDataFeedUint64
@@ -88,15 +94,14 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 // testRequestHandler sets up the test and returns the test id for
 // future query
 func testRequestHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	category := vars["category"]
+	testType := r.URL.Query().Get("type")
 
 	var rparams perftest.RatingParams
 	var bparams perftest.BillingParams
 	var testID string
 	var e error
 	decoder := json.NewDecoder(r.Body)
-	switch category {
+	switch testType {
 	case "rating":
 		if e = decoder.Decode(&rparams); e != nil {
 			http.Error(w, e.Error(), http.StatusBadRequest)
@@ -120,7 +125,7 @@ func testRequestHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	default:
-		http.Error(w, "Invalid category", http.StatusBadRequest)
+		http.Error(w, "Invalid/Missing test type, valid types are 'billing' and 'rating'", http.StatusBadRequest)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -129,9 +134,9 @@ func testRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 // AddV1Routes adds version 1 handlers
 func AddV1Routes(r *mux.Router) {
-	r.HandleFunc("/{category:(?:billing|rating)}/tests/{testID}", statsHandler).Methods("GET")
-	r.HandleFunc("/{category:(?:billing|rating)}/tests", testRequestHandler).Methods("POST")
-	r.HandleFunc("/{category:(?:billing|rating)}/tests", ratingComparisonHandler).Methods("GET")
+	r.HandleFunc("/tests", metaDataRetriever).Methods("GET", "POST")
+	r.HandleFunc("/tests/{testID}", statsHandler).Methods("GET")
+	r.HandleFunc("/rating/charts", ratingComparisonHandler).Methods("GET")
 }
 
 func main() {

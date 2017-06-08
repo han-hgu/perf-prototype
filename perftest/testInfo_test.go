@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-func TestGetInfo(t *testing.T) {
+func TestGetComment(t *testing.T) {
 	var rp RatingParams
-	rp.AdditionalInfo = map[string]string{"foo": "v1", "bar": "v2"}
-	if !reflect.DeepEqual(rp.AdditionalInfo, rp.Info()) {
-		t.Errorf("Info() returns correct value")
+	rp.Cmt = "Rating test commment."
+	if rp.Cmt != rp.Comment() {
+		t.Errorf("Comment() returns correct value")
 	}
 }
 
@@ -25,7 +25,8 @@ func TestGetTestID(t *testing.T) {
 
 func TestGetTestIDFromResult(t *testing.T) {
 	testID := "TestGetTestIDFromResult"
-	tr := TestResult{ID: testID}
+	tr := TestResult{}
+	tr.ID = testID
 	if tr.TestID() != testID {
 		t.Error("Get ID from testResult returns correct value")
 	}
@@ -33,10 +34,9 @@ func TestGetTestIDFromResult(t *testing.T) {
 
 func TestChartTitleFromResult(t *testing.T) {
 	testID := "testIDTestChartTitleFromResult"
-	tr := TestResult{
-		ID: testID,
-	}
+	tr := TestResult{}
 
+	tr.ID = testID
 	// No title in the TestResult
 	if tr.ChartTitle() != testID {
 		t.Error("Test ID is used as the chart title if chart title is empty")
@@ -55,8 +55,10 @@ func TestGetResult(t *testing.T) {
 		AvgRate:        0,
 		FilesCompleted: 0}
 
-	tr := TestResult{StartTime: time.Now(),
-		Done: false}
+	tr := TestResult{}
+
+	tr.StartTime = time.Now()
+	tr.Done = false
 
 	rr.TestResult = tr
 
@@ -121,50 +123,8 @@ func TestAddLogicalReads(t *testing.T) {
 	}
 }
 
-func TestFetchDBLReads(t *testing.T) {
-	var tr TestResult
-	tr.AddLogicalReads(10)
-	tr.AddLogicalReads(20)
-	tr.AddLogicalReads(30)
-	if !reflect.DeepEqual(tr.FetchDBLReads(), []uint64{10, 20, 30}) {
-		t.Error("Logical read samples are added")
-	}
-
-	if !reflect.DeepEqual(FetchDBServerLReads(&tr), []uint64{10, 20, 30}) {
-		t.Error("Logical reads fetched")
-	}
-}
-
-func TestFetchDBLWrites(t *testing.T) {
-	var tr TestResult
-	tr.AddLogicalWrites(10)
-	tr.AddLogicalWrites(20)
-	tr.AddLogicalWrites(30)
-	if !reflect.DeepEqual(tr.FetchDBLWrites(), []uint64{10, 20, 30}) {
-		t.Error("Logical read samples are added")
-	}
-
-	if !reflect.DeepEqual(FetchDBServerLWrites(&tr), []uint64{10, 20, 30}) {
-		t.Error("Logical writes fetched")
-	}
-}
-
-func TestFetchDBPReads(t *testing.T) {
-	var tr TestResult
-	tr.AddPhysicalReads(10)
-	tr.AddPhysicalReads(20)
-	tr.AddPhysicalReads(30)
-	if !reflect.DeepEqual(tr.FetchDBPReads(), []uint64{10, 20, 30}) {
-		t.Error("Logical read samples are added")
-	}
-
-	if !reflect.DeepEqual(FetchDBServerPReads(&tr), []uint64{10, 20, 30}) {
-		t.Error("Physical read fetched")
-	}
-}
-
 func TestFetchAppServerCPUStats(t *testing.T) {
-	var tr TestResult
+	var tr RatingResult
 	tr.AddAppServerCPU(0.1)
 	tr.AddAppServerCPU(0.2)
 	tr.AddAppServerCPU(0.3)
@@ -174,7 +134,7 @@ func TestFetchAppServerCPUStats(t *testing.T) {
 }
 
 func TestFetchAppServerMemStats(t *testing.T) {
-	var tr TestResult
+	var tr RatingResult
 	tr.AddAppServerMem(0.1)
 	tr.AddAppServerMem(0.2)
 	tr.AddAppServerMem(0.3)
@@ -184,7 +144,7 @@ func TestFetchAppServerMemStats(t *testing.T) {
 }
 
 func TestFetchDBServerCPUStats(t *testing.T) {
-	var tr TestResult
+	var tr BillingResult
 	tr.AddDBServerCPU(0.1)
 	tr.AddDBServerCPU(0.2)
 	tr.AddDBServerCPU(0.3)
@@ -194,7 +154,7 @@ func TestFetchDBServerCPUStats(t *testing.T) {
 }
 
 func TestFetchDBServerMemStats(t *testing.T) {
-	var tr TestResult
+	var tr BillingResult
 	tr.AddDBServerMem(0.1)
 	tr.AddDBServerMem(0.2)
 	tr.AddDBServerMem(0.3)
@@ -218,7 +178,7 @@ func TestFetchUDRProcessedTrend(t *testing.T) {
 	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, 10000)
 	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, 20000)
 	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, 30000)
-	if !reflect.DeepEqual(FetchUDRProcessedTrend(&rr), []float32{10000, 20000, 30000}) {
+	if !reflect.DeepEqual(FetchUDRProcessedTrend(&rr), []uint64{10000, 20000, 30000}) {
 		t.Error("Fetch UDR Processed Trend returns the correct result")
 	}
 }

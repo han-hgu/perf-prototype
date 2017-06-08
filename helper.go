@@ -159,8 +159,8 @@ func UDRRatesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
 }
 
 // UDRCurrentProcessedForTemplate returns the total number of UDRs per interval
-func UDRCurrentProcessedForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
-	return collectSamplesForTemplate("Total UDR processed", trs, perftest.FetchUDRProcessedTrend)
+func UDRCurrentProcessedForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
+	return collectSamplesForTemplateUint64("Total UDR processed", trs, perftest.FetchUDRProcessedTrend)
 }
 
 // newUUID generates a random UUID according to RFC 4122

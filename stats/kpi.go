@@ -27,12 +27,13 @@ func (c *Controller) TrackKPI(wg *sync.WaitGroup, dbname string, cpu *float32, l
 		defer wg.Done()
 	}
 
-	q := `;WITH DB_CPU_Stats
+	q := `SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
+	      ;WITH DB_CPU_Stats
 		  AS
 		  (
 		    SELECT DatabaseID, isnull(DB_Name(DatabaseID),
 				   case DatabaseID when 32767 then 'Internal ResourceDB' else CONVERT(varchar(255),DatabaseID)end) AS [DatabaseName],
-		           SUM(total_worker_time) AS [CPU_Time_Ms], convert(bigint,SUM(total_logical_reads))  AS [Logical_Reads],
+		           SUM(total_worker_time) AS [CPU_Time_Ms], SUM(total_logical_reads)  AS [Logical_Reads],
 		           SUM(total_logical_writes)  AS [Logical_Writes], SUM(total_logical_reads+total_logical_writes)  AS [Logical_IO],
 		           SUM(total_physical_reads)  AS [Physical_Reads], SUM(total_elapsed_time)  AS [Duration_MicroSec],
 		           SUM(total_clr_time)  AS [CLR_Time_MicroSec], SUM(total_rows)  AS [Rows_Returned],
@@ -49,8 +50,7 @@ func (c *Controller) TrackKPI(wg *sync.WaitGroup, dbname string, cpu *float32, l
 		  [Logical_Reads],
 		  [Physical_Reads],
 		  [Logical_Writes]
-		  FROM DB_CPU_Stats
-		  OPTION (RECOMPILE);`
+		  FROM DB_CPU_Stats;`
 
 	rows, err := c.db.Query(q)
 	if err != nil {
@@ -66,7 +66,6 @@ func (c *Controller) TrackKPI(wg *sync.WaitGroup, dbname string, cpu *float32, l
 		}
 
 		if dbc == dbname {
-			log.Printf("HAN >>>>>> db: %v, logicalReads: %v, physicalReads: %v, logicalWrites: %v", dbname, *logicalReads, *physicalReads, *logicalWrites)
 			return
 		}
 	}

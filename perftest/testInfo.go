@@ -7,7 +7,7 @@ import (
 
 // Params interface to abstract out params
 type Params interface {
-	Info() map[string]string
+	Comment() string
 	TestID() string
 	Controller() iController
 	Keywords() map[string]string
@@ -26,14 +26,12 @@ type Result interface {
 	AddLogicalReads(v uint64)
 	AddLogicalWrites(v uint64)
 	AddPhysicalReads(v uint64)
-	FetchDBLReads() []uint64
-	FetchDBLWrites() []uint64
-	FetchDBPReads() []uint64
 	AppServerStats() *GenericStats
 	DBServerStats() *DBStats
 	TestID() string
 	CollectionInterval() string
 	ChartTitle() string
+	MetaData() Metadata
 }
 
 // TestInfo stores all the test related information
@@ -70,19 +68,19 @@ type AppConf struct {
 
 // TestParams to hold common test parameters for all test types
 type TestParams struct {
-	ID             string            `json:"-"`
-	DBConf         DBConf            `json:"db_config"`
-	AppConf        AppConf           `json:"app_config"`
-	ChartConf      ChartConf         `json:"chart_config"`
-	AdditionalInfo map[string]string `json:"additional_info"`
-	Kwords         map[string]string `json:"keywords"`
-	DbController   iController       `json:"-"`
-	CInterval      string            `json:"collection_interval"`
+	ID           string            `json:"-"`
+	DBConf       DBConf            `json:"db_config"`
+	AppConf      AppConf           `json:"app_config"`
+	ChartConf    ChartConf         `json:"chart_config"`
+	Cmt          string            `json:"comment"`
+	Kwords       map[string]string `json:"tags"`
+	DbController iController       `json:"-"`
+	CInterval    string            `json:"collection_interval"`
 }
 
-// Info returns the AdditionalInfo field
-func (tp *TestParams) Info() map[string]string {
-	return tp.AdditionalInfo
+// Comment returns the Comment field
+func (tp *TestParams) Comment() string {
+	return tp.Cmt
 }
 
 // TestID returns the test ID
@@ -180,19 +178,27 @@ type DBStats struct {
 	PReads       []uint64 `json:"physical_reads,omitempty"`
 }
 
+// Metadata to store the meta data for the test, this is to make the display
+// easier and
+type Metadata struct {
+	ID        string            `json:"id"`
+	Type      string            `json:"test_type"`
+	StartTime time.Time         `json:"start_date"`
+	Done      bool              `json:"test_completed"`
+	Duration  string            `json:"test_duration,omitempty"`
+	Keywords  map[string]string `json:"tags,omitempty"`
+	Cmt       string            `json:"comment,omitempty"`
+	CInterval string            `json:"collection_interval"`
+	DBConfig  *DBConf           `json:"db_config"`
+	DBParams  DBParams          `json:"database_parameters"`
+	CTitle    string            `json:"-"`
+}
+
 // TestResult to store generic results
 type TestResult struct {
-	ID             string            `json:"ID"`
-	CInterval      string            `json:"collection_interval"`
-	StartTime      time.Time         `json:"start_date"`
-	Duration       string            `json:"test_duration,omitempty"`
-	Done           bool              `json:"test_completed"`
-	AdditionalInfo map[string]string `json:"additional_info,omitempty"`
-	Keywords       map[string]string `json:"keywords,omitempty"`
-	AppStats       GenericStats      `json:"app_server_stats"`
-	DBStats        DBStats           `json:"database_server_stats"`
-	DBParams       DBParams          `json:"database_parameters"`
-	CTitle         string            `json:"-"`
+	Metadata `json:"meta_data"`
+	AppStats GenericStats `json:"app_server_stats"`
+	DBStats  DBStats      `json:"database_server_stats"`
 }
 
 // TestID to get the test ID
@@ -200,7 +206,7 @@ func (tr *TestResult) TestID() string {
 	return tr.ID
 }
 
-// CollectionInterval returns the collection interval from TestResult
+// CollectionInterval returns the collection interval from the
 func (tr *TestResult) CollectionInterval() string {
 	return tr.CInterval
 }
@@ -288,19 +294,9 @@ func (tr *TestResult) AddPhysicalReads(v uint64) {
 	tr.DBStats.PReadsTotal += v
 }
 
-// FetchDBLReads fetches the logical reads
-func (tr *TestResult) FetchDBLReads() []uint64 {
-	return tr.DBStats.LReads
-}
-
-// FetchDBLWrites fetches the logical writes
-func (tr *TestResult) FetchDBLWrites() []uint64 {
-	return tr.DBStats.LWrites
-}
-
-// FetchDBPReads fetches the phyiscal reads
-func (tr *TestResult) FetchDBPReads() []uint64 {
-	return tr.DBStats.PReads
+// MetaData returns the meta data
+func (tr *TestResult) MetaData() Metadata {
+	return tr.Metadata
 }
 
 // FetchAppServerCPUStats fetches the CPU stats of app server
@@ -348,7 +344,7 @@ func FetchRates(r Result) []float32 {
 }
 
 // FetchUDRProcessedTrend fetches the udr processed trend
-func FetchUDRProcessedTrend(r Result) []float32 {
+func FetchUDRProcessedTrend(r Result) []uint64 {
 	rr, ok := r.(*RatingResult)
 	if !ok {
 		panic("ERR: Fetch rates from a non-rating result")
@@ -393,28 +389,29 @@ func (tr *TestResult) DBServerStats() *DBStats {
 // RatingResult to save the rate information
 type RatingResult struct {
 	TestResult
-	Rates                 []float32 `json:"udr_rates,omitempty"`
 	MinRate               float32   `json:"-"`
 	AvgRate               float32   `json:"udr_rate_avg,omitempty"`
-	UDRProcessedTrend     []float32 `json:"udr_created_trend,omitempty"`
 	UDRProcessed          uint64    `json:"udr_created"`
 	UDRExceptionProcessed uint64    `json:"udr_exception_created"`
 	FilesCompleted        uint32    `json:"files_completed"`
+	Rates                 []float32 `json:"udr_rates,omitempty"`
+	UDRProcessedTrend     []uint64  `json:"udr_created_trend,omitempty"`
 }
 
 // BillingResult to save the billing information
 type BillingResult struct {
 	TestResult
-	UserPackageBilled        uint64    `json:"user_package_billed,omitempty"`
+	OwnerName                string    `json:"owner_name"`
+	BillingDuration          string    `json:"billing_duration,omitempty"`
 	InvoiceRenderDuration    string    `json:"invoice_render_duration,omitempty"`
+	UserPackageBilled        uint64    `json:"user_package_billed,omitempty"`
+	UserPackageBillRate      []uint32  `json:"user_package_bill_rate,omitempty"`
 	InvoiceRenderStartTime   time.Time `json:"-"`
 	InvoiceRenderEndTime     time.Time `json:"-"`
 	InvoiceRenderEndTimeOnce sync.Once `json:"-"`
-	BillingDuration          string    `json:"billing_duration,omitempty"`
 	BillingStartTime         time.Time `json:"-"`
 	BillingEndTime           time.Time `json:"-"`
 	BillingEndTimeOnce       sync.Once `json:"-"`
 	BillrunEndTime           time.Time `json:"-"`
 	BillrunEndOnce           sync.Once `json:"-"`
-	UserPackageBillRate      []uint32  `json:"user_package_bill_rate,omitempty"`
 }

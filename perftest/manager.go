@@ -73,3 +73,18 @@ func (tm *Manager) Get(testID string) (Result, error) {
 
 	return nil, errors.New("test doesn't exist")
 }
+
+// GetAll returns all test meta data
+func (tm *Manager) GetAll() []Metadata {
+	r := make([]Metadata, 0)
+	tm.RLock()
+	for _, w := range tm.workerMap {
+		w.Request <- struct{}{}
+		m := <-w.Response
+		r = append(r, m.MetaData())
+	}
+	tm.RUnlock()
+
+	r = append(r, tm.s.getAll()...)
+	return r
+}

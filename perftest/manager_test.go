@@ -69,14 +69,10 @@ func TestGetInvalidTest(t *testing.T) {
 }
 
 func TestGetValidTestWithWorkerRegistered(t *testing.T) {
-	ai := map[string]string{
-		"p1": "1",
-		"p2": "2",
-		"p3": "3",
-	}
+	c := "This is a comment"
 
 	tp := TestParams{ID: "abc"}
-	tp.AdditionalInfo = ai
+	tp.Cmt = c
 
 	sc := mockStatsController{}
 	rp := RatingParams{}
@@ -91,7 +87,7 @@ func TestGetValidTestWithWorkerRegistered(t *testing.T) {
 		t.Error("Worker returns the test result")
 	}
 
-	if !reflect.DeepEqual(r.Result().AdditionalInfo, ai) {
+	if r.Result().Cmt != c {
 		t.Error("Worker returns the correct test result")
 	}
 }
@@ -103,8 +99,10 @@ func TestGetValidTestWithWorkerUnRegistered(t *testing.T) {
 		AvgRate:        3,
 		FilesCompleted: 5}
 
-	tre := TestResult{StartTime: time.Now(),
-		Done: false}
+	tre := TestResult{}
+
+	tre.StartTime = time.Now()
+	tre.Done = false
 
 	rre.TestResult = tre
 	ti := TestInfo{}

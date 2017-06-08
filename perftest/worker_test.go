@@ -12,9 +12,7 @@ func TestCreateWorkerForRating(t *testing.T) {
 	sc := mockStatsController{}
 	tp := TestParams{ID: "abc"}
 	tp.DbController = &sc
-	tp.AdditionalInfo = map[string]string{
-		"p1": "1",
-	}
+	tp.Cmt = "This is a comment."
 	rp.TestParams = tp
 	w := createWorker(m, &rp)
 
@@ -46,9 +44,7 @@ func TestRun(t *testing.T) {
 	m := Create()
 	var rp RatingParams
 	tp := TestParams{ID: "abc"}
-	tp.AdditionalInfo = map[string]string{
-		"p1": "1",
-	}
+	tp.Cmt = "This is a comment."
 	sc := mockStatsController{}
 	tp.DbController = &sc
 	rp.TestParams = tp
@@ -59,7 +55,7 @@ func TestRun(t *testing.T) {
 	time.Sleep(2 * waitTime)
 	w.Request <- struct{}{}
 	r := <-w.Response
-	if !reflect.DeepEqual(r.Result().AdditionalInfo, tp.AdditionalInfo) {
+	if r.Result().Cmt != tp.Cmt {
 		t.Error("Worker returns correct result")
 	}
 
@@ -70,9 +66,7 @@ func TestWorkerAddResultsToStoreWhenDone(t *testing.T) {
 	m := Create()
 	var rp RatingParams
 	tp := TestParams{ID: "abc"}
-	tp.AdditionalInfo = map[string]string{
-		"p1": "1",
-	}
+	tp.Cmt = "This is a comment."
 	sc := mockStatsController{}
 	tp.DbController = &sc
 	rp.TestParams = tp

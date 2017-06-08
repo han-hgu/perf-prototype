@@ -52,7 +52,7 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	// Attention: UDRProcessed is a field for charting purpose, in order to
 	// make the interface unified, cast uint64 to float32 assuming the cast will
 	// always be successful
-	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, float32(rr.UDRProcessed))
+	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, rr.UDRProcessed)
 	rr.UDRExceptionProcessed += udrExceptionC
 	rr.FilesCompleted += numberOfFilesProcessed
 	if rr.FilesCompleted == rp.NumOfFiles {

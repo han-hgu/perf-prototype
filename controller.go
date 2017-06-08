@@ -31,6 +31,13 @@ func Result(testID string) (perftest.Result, error) {
 	return c.tm.Get(testID)
 }
 
+// MetaData returns all test meta data
+func MetaData() []perftest.Metadata {
+	initController()
+
+	return c.tm.GetAll()
+}
+
 // StartRatingTest starts a rating test
 func StartRatingTest(t *perftest.RatingParams) (id string, err error) {
 	initController()

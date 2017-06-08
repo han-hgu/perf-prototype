@@ -31,7 +31,6 @@ You can cross compile it using
 
 
 ## Requirements
-
 - Rating perf testing
 - Billing perf testing
 - File drop service to generate and create the input files in the designed location
@@ -41,6 +40,14 @@ You can cross compile it using
 	- Server recovery
 	- Error stats
 	- Persistent storage
+
+## Design Decisions
+### Database
+
+### Caching
+
+## TODO
+- Switch to use Context package
 
 [OAuth]: http://oauth.net/core/1.0a/
 [Beginner’s Guide]: http://hueniverse.com/oauth/
