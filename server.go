@@ -17,6 +17,10 @@ type httpStats struct {
 }
 
 func metaDataRetriever(w http.ResponseWriter, r *http.Request) {
+	//https://golangcode.com/get-a-url-parameter-from-a-request/
+	tags, _ := r.URL.Query()["tag"]
+	fmt.Println("HAN >>>>", tags)
+
 	mds := MetaData()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(mds)
@@ -125,7 +129,8 @@ func testRequestHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	default:
-		http.Error(w, "Invalid/Missing test type, valid types are 'billing' and 'rating'", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Invalid/Missing test type, valid types are 'billing' and 'rating', got %v", testType), http.StatusBadRequest)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -134,12 +139,14 @@ func testRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 // AddV1Routes adds version 1 handlers
 func AddV1Routes(r *mux.Router) {
-	r.HandleFunc("/tests", metaDataRetriever).Methods("GET", "POST")
+	r.HandleFunc("/tests", metaDataRetriever).Methods("GET")
+	r.HandleFunc("/tests", testRequestHandler).Methods("POST")
 	r.HandleFunc("/tests/{testID}", statsHandler).Methods("GET")
 	r.HandleFunc("/rating/charts", ratingComparisonHandler).Methods("GET")
 }
 
 func main() {
+	defer Teardown()
 	r := mux.NewRouter().StrictSlash(true)
 
 	// TODO: OPTIONS handler

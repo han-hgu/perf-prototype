@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"log"
 	"sync"
 
 	"github.com/perf-prototype/perftest"
@@ -24,6 +23,11 @@ func initController() {
 	})
 }
 
+// Teardown to tear down the controller
+func Teardown() {
+	c.tm.Teardown()
+}
+
 // Result returns the test result based on the UUID
 func Result(testID string) (perftest.Result, error) {
 	// query before any test is started
@@ -32,7 +36,7 @@ func Result(testID string) (perftest.Result, error) {
 }
 
 // MetaData returns all test meta data
-func MetaData() []perftest.Metadata {
+func MetaData() []map[string]interface{} {
 	initController()
 
 	return c.tm.GetAll()
@@ -59,9 +63,9 @@ func StartRatingTest(t *perftest.RatingParams) (id string, err error) {
 	statsDBConf.UID = t.DBConf.UID
 	statsDBConf.Pwd = t.DBConf.Pwd
 
-	sc := stats.CreateController(&statsDBConf)
-	if sc == nil {
-		log.Fatal("ERR: Stats controller not created")
+	sc, err := stats.CreateController(&statsDBConf)
+	if err != nil {
+		return "", err
 	}
 	t.TestParams.DbController = sc
 
@@ -99,9 +103,9 @@ func StartBillingTest(t *perftest.BillingParams) (id string, err error) {
 	statsDBConf.UID = t.DBConf.UID
 	statsDBConf.Pwd = t.DBConf.Pwd
 
-	sc := stats.CreateController(&statsDBConf)
-	if sc == nil {
-		log.Fatal("ERR: Stats controller not created")
+	sc, err := stats.CreateController(&statsDBConf)
+	if err != nil {
+		return "", err
 	}
 	t.TestParams.DbController = sc
 

@@ -30,7 +30,7 @@ type Controller struct {
 
 // CreateController returns a controller to communicate with the sql db based
 // on DBConfig
-func CreateController(dbc *DBConfig) *Controller {
+func CreateController(dbc *DBConfig) (*Controller, error) {
 	c := new(Controller)
 	c.conf = dbc
 	c.connString = "server=" + c.conf.Server +
@@ -41,16 +41,16 @@ func CreateController(dbc *DBConfig) *Controller {
 
 	db, err := sql.Open("sqlserver", c.connString)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	err = db.Ping()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	c.db = db
-	return c
+	return c, nil
 }
 
 // TearDown to close the database properly

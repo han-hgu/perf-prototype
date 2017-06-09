@@ -188,7 +188,7 @@ func (w *worker) TrackAppServerKPI(wg *sync.WaitGroup, cpu *float32, mem *float3
 	var pfstats PerfMonStats
 	rsp, e := w.appStatsC.Get(w.ti.Params.AppConfig().URL)
 	if e != nil {
-		fmt.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
+		//fmt.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
 	} else {
 		json.NewDecoder(rsp.Body).Decode(&pfstats)
 	}

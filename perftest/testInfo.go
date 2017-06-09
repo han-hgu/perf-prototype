@@ -181,24 +181,24 @@ type DBStats struct {
 // Metadata to store the meta data for the test, this is to make the display
 // easier and
 type Metadata struct {
-	ID        string            `json:"id"`
-	Type      string            `json:"test_type"`
-	StartTime time.Time         `json:"start_date"`
-	Done      bool              `json:"test_completed"`
-	Duration  string            `json:"test_duration,omitempty"`
-	Keywords  map[string]string `json:"tags,omitempty"`
-	Cmt       string            `json:"comment,omitempty"`
-	CInterval string            `json:"collection_interval"`
-	DBConfig  *DBConf           `json:"db_config"`
-	DBParams  DBParams          `json:"database_parameters"`
-	CTitle    string            `json:"-"`
+	Type      string            `json:"test_type" bson:"test_type"`
+	StartTime time.Time         `json:"start_date" bson:"start_date"`
+	Done      bool              `json:"test_completed" bson:"start_date"`
+	Duration  string            `json:"test_duration,omitempty" bson:"start_date"`
+	Keywords  map[string]string `json:"tags,omitempty" bson:"start_date"`
+	Cmt       string            `json:"comment,omitempty" bson:"start_date"`
+	CInterval string            `json:"collection_interval" bson:"start_date"`
+	DBConfig  *DBConf           `json:"db_config" bson:"start_date"`
+	DBParams  DBParams          `json:"database_parameters" bson:"start_date"`
+	CTitle    string            `json:"-" bson:"chart_title"`
 }
 
 // TestResult to store generic results
 type TestResult struct {
-	Metadata `json:"meta_data"`
-	AppStats GenericStats `json:"app_server_stats"`
-	DBStats  DBStats      `json:"database_server_stats"`
+	ID       string `json:"id" bson:"_id"`
+	Metadata `json:"meta_data" bson:"meta_data"`
+	AppStats GenericStats `json:"app_server_stats" bson:"app_server_stats"`
+	DBStats  DBStats      `json:"database_server_stats" bson:"database_server_stats"`
 }
 
 // TestID to get the test ID

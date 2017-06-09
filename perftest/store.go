@@ -4,17 +4,50 @@ import (
 	"errors"
 	"log"
 	"sync"
+
+	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+)
+
+const (
+	// MongoDBHost for mongo database host info
+	MongoDBHost = "192.168.1.49"
+	// DBName to save the perf results
+	DBName = "EngageIPPerfResults"
+	// CollectionName for the collection name for perf results
+	CollectionName = "TestInfo"
 )
 
 // store to save test information
 type store struct {
+	mgoSession *mgo.Session
+
+	metaDataInfoLock sync.RWMutex
+	metaDataInfo     map[bson.ObjectId]Metadata
+
 	sync.RWMutex
 	info map[string]*TestInfo
 }
 
 // laod all meta data into memory
 func (s *store) initialize() {
+	db, err := mgo.Dial(MongoDBHost)
+	db.SetMode(mgo.Monotonic, true)
+	s.mgoSession = db
+	if err != nil {
+		log.Fatal("ERR: cannot connect to backbone database", err)
+	}
 
+	// load the meta data to the map, don't use cache since it has to be
+	// completely loaded
+	s.metaDataInfoLock.Lock()
+	defer s.metaDataInfoLock.Unlock()
+	currSession := s.mgoSession.Copy()
+	defer currSession.Close()
+}
+
+func (s *store) teardown() {
+	s.mgoSession.Close()
 }
 
 func (s *store) add(uuid string, t *TestInfo) error {
@@ -47,8 +80,8 @@ func (s *store) get(uuid string) (TestInfo, error) {
 	return *s.info[uuid], nil
 }
 
-func (s *store) getAll() []Metadata {
-	r := make([]Metadata, 0)
+func (s *store) getAll() []map[string]interface{} {
+	retVal := make([]map[string]interface{}, 0)
 	if s.info == nil {
 		return nil
 	}
@@ -56,10 +89,13 @@ func (s *store) getAll() []Metadata {
 	s.RLock()
 	defer s.RUnlock()
 	for _, ti := range s.info {
-		r = append(r, ti.Result.MetaData())
+		currTest := make(map[string]interface{})
+		currTest["id"] = ti.Result.TestID()
+		currTest["meta_data"] = ti.Result.MetaData()
+		retVal = append(retVal, currTest)
 	}
 
-	return r
+	return retVal
 }
 
 func (s *store) update(uuid string, t *TestInfo) error {

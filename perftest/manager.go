@@ -24,6 +24,11 @@ func Create() *Manager {
 	return tm
 }
 
+// Teardown to tear down the manager properly
+func (tm *Manager) Teardown() {
+	tm.s.teardown()
+}
+
 // Add a test
 func (tm *Manager) Add(testID string, t Params) {
 	w := createWorker(tm, t)
@@ -75,16 +80,20 @@ func (tm *Manager) Get(testID string) (Result, error) {
 }
 
 // GetAll returns all test meta data
-func (tm *Manager) GetAll() []Metadata {
-	r := make([]Metadata, 0)
+func (tm *Manager) GetAll() []map[string]interface{} {
+	retVal := make([]map[string]interface{}, 0)
+
 	tm.RLock()
 	for _, w := range tm.workerMap {
+		currTest := make(map[string]interface{})
 		w.Request <- struct{}{}
 		m := <-w.Response
-		r = append(r, m.MetaData())
+		currTest["id"] = m.TestID()
+		currTest["meta_data"] = m.MetaData()
+		retVal = append(retVal, currTest)
 	}
 	tm.RUnlock()
 
-	r = append(r, tm.s.getAll()...)
-	return r
+	retVal = append(retVal, tm.s.getAll()...)
+	return retVal
 }
