@@ -4,33 +4,35 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Manager to manage workers and the store for finished tests
 type Manager struct {
-	s *store
+	s storage
 
 	// Even mutex protected, mostly read lock
 	sync.RWMutex
-	workerMap map[string]*worker
+	workerMap map[bson.ObjectId]*worker
 }
 
 // Create a new manager
-func Create() *Manager {
+func Create(s storage) *Manager {
 	tm := new(Manager)
-	tm.s = new(store)
-	tm.workerMap = make(map[string]*worker)
+	tm.s = s
+	tm.workerMap = make(map[bson.ObjectId]*worker)
 
 	return tm
 }
 
 // Teardown to tear down the manager properly
 func (tm *Manager) Teardown() {
-	tm.s.teardown()
+	tm.s.Teardown()
 }
 
 // Add a test
-func (tm *Manager) Add(testID string, t Params) {
+func (tm *Manager) Add(testID bson.ObjectId, t Params) {
 	w := createWorker(tm, t)
 	go w.run()
 
@@ -43,7 +45,7 @@ func (tm *Manager) Add(testID string, t Params) {
 }
 
 // Get the test result providing testID
-func (tm *Manager) Get(testID string) (Result, error) {
+func (tm *Manager) Get(testID bson.ObjectId) (Result, error) {
 	if r, e := tm.s.get(testID); e == nil {
 		// if we have the result in the store, the next request thread is
 		// responsible for closing the worker go-routine
@@ -65,7 +67,7 @@ func (tm *Manager) Get(testID string) (Result, error) {
 				}
 			}()
 		}
-		return r.Result, nil
+		return r, nil
 	}
 
 	tm.RLock()
@@ -79,21 +81,28 @@ func (tm *Manager) Get(testID string) (Result, error) {
 	return nil, errors.New("test doesn't exist")
 }
 
-// GetAll returns all test meta data
-func (tm *Manager) GetAll() []map[string]interface{} {
-	retVal := make([]map[string]interface{}, 0)
+// GetAll returns all test meta data with the provided tags, if tags is nil,
+// return all test meta data
+func (tm *Manager) GetAll(tags []string) ([]TestResultSV, error) {
+	retVal := make([]TestResultSV, 0)
 
 	tm.RLock()
 	for _, w := range tm.workerMap {
-		currTest := make(map[string]interface{})
+		trsv := TestResultSV{}
 		w.Request <- struct{}{}
 		m := <-w.Response
-		currTest["id"] = m.TestID()
-		currTest["meta_data"] = m.MetaData()
-		retVal = append(retVal, currTest)
+		trsv.ID = m.TestID()
+		trsv.Md = m.MetaData()
+		retVal = append(retVal, trsv)
 	}
 	tm.RUnlock()
 
-	retVal = append(retVal, tm.s.getAll()...)
-	return retVal
+	rv, err := tm.s.getTestResultSVByTags(tags)
+
+	if err != nil {
+		return nil, err
+	}
+
+	retVal = append(retVal, rv...)
+	return retVal, nil
 }

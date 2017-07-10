@@ -9,8 +9,11 @@ import (
 
 // UpdateDBParameters updates the database KPIs and configuration settings
 // related to the performance
-func (c *Controller) UpdateDBParameters(dbname string, dbp *perftest.DBParams) error {
-	dbp.CompatibilityLevel = c.compatiblityLevel(dbname)
+func (c *Controller) UpdateDBParameters(dbc *perftest.DBConf, dbp *perftest.DBParams) error {
+	dbp.Database = dbc.Database
+	dbp.AddtionalInfo = dbc.AddtionalInfo
+	dbp.URL = dbc.URL
+	dbp.CompatibilityLevel = c.compatiblityLevel(dbp.Database)
 	return nil
 }
 

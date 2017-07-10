@@ -1,115 +1,90 @@
 package perftest
 
 import (
-	"errors"
 	"log"
-	"sync"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-const (
+var (
 	// MongoDBHost for mongo database host info
 	MongoDBHost = "192.168.1.49"
 	// DBName to save the perf results
-	DBName = "EngageIPPerfResults"
+	DBName = "EIPPerfFramework"
 	// CollectionName for the collection name for perf results
-	CollectionName = "TestInfo"
+	CollectionName = "TestResult"
 )
 
-// store to save test information
-type store struct {
+// Store to save test information
+type Store struct {
 	mgoSession *mgo.Session
-
-	metaDataInfoLock sync.RWMutex
-	metaDataInfo     map[bson.ObjectId]Metadata
-
-	sync.RWMutex
-	info map[string]*TestInfo
 }
 
-// laod all meta data into memory
-func (s *store) initialize() {
+// Initialize initializes the store
+func (s *Store) Initialize() {
 	db, err := mgo.Dial(MongoDBHost)
-	db.SetMode(mgo.Monotonic, true)
-	s.mgoSession = db
 	if err != nil {
-		log.Fatal("ERR: cannot connect to backbone database", err)
+		log.Fatalf("ERR: cannot connect to backbone database: %v", err)
 	}
-
-	// load the meta data to the map, don't use cache since it has to be
-	// completely loaded
-	s.metaDataInfoLock.Lock()
-	defer s.metaDataInfoLock.Unlock()
-	currSession := s.mgoSession.Copy()
-	defer currSession.Close()
+	db.SetMode(mgo.Monotonic, true)
+	db.SetSafe(&mgo.Safe{})
+	s.mgoSession = db
 }
 
-func (s *store) teardown() {
+// Teardown shuts down the store
+func (s *Store) Teardown() {
 	s.mgoSession.Close()
 }
 
-func (s *store) add(uuid string, t *TestInfo) error {
-	if s.info == nil {
-		s.info = make(map[string]*TestInfo)
-	}
+func (s *Store) add(r Result) error {
+	session := s.mgoSession.Copy()
+	defer session.Close()
 
-	s.Lock()
-	defer s.Unlock()
-	if _, ok := s.info[uuid]; !ok {
-		s.info[uuid] = t
+	collection := session.DB(DBName).C(CollectionName)
+	err := collection.Insert(r)
+	if mgo.IsDup(err) {
 		return nil
 	}
 
-	return errors.New("test already exists")
+	return err
 }
 
 // get testInfo from the store
-func (s *store) get(uuid string) (TestInfo, error) {
-	if s.info == nil {
-		return TestInfo{}, errors.New("test doesn't exist")
+func (s *Store) get(id bson.ObjectId) (r Result, err error) {
+	session := s.mgoSession.Copy()
+	defer session.Close()
+
+	rt := TestResult{}
+	collection := session.DB(DBName).C(CollectionName)
+	err = collection.FindId(id).One(&rt)
+
+	if rt.Type == "rating" {
+		r = new(RatingResult)
+	} else if rt.Type == "billing" {
+		r = new(BillingResult)
+	} else {
+		r = new(TestResult)
 	}
 
-	s.RLock()
-	defer s.RUnlock()
-	if _, ok := s.info[uuid]; !ok {
-		return TestInfo{}, errors.New("test doesn't exist")
-	}
-
-	return *s.info[uuid], nil
+	err = collection.FindId(id).One(r)
+	return r, err
 }
 
-func (s *store) getAll() []map[string]interface{} {
-	retVal := make([]map[string]interface{}, 0)
-	if s.info == nil {
-		return nil
+// getTestResultSVByTags returns the results matching all specified tags, each
+// returned element contains a short version of test result
+func (s *Store) getTestResultSVByTags(tags []string) ([]TestResultSV, error) {
+	r := make([]TestResultSV, 0)
+	session := s.mgoSession.Copy()
+	defer session.Close()
+
+	collection := session.DB(DBName).C(CollectionName)
+	var findQ bson.M
+	if len(tags) != 0 {
+		findQ = bson.M{"meta_data.tags": bson.M{"$all": tags}}
 	}
 
-	s.RLock()
-	defer s.RUnlock()
-	for _, ti := range s.info {
-		currTest := make(map[string]interface{})
-		currTest["id"] = ti.Result.TestID()
-		currTest["meta_data"] = ti.Result.MetaData()
-		retVal = append(retVal, currTest)
-	}
-
-	return retVal
-}
-
-func (s *store) update(uuid string, t *TestInfo) error {
-	if s.info == nil {
-		return errors.New("update non-existing test result")
-	}
-	s.Lock()
-	defer s.Unlock()
-
-	if _, ok := s.info[uuid]; !ok {
-		log.Println("WARNING: updating an non-existing test")
-		return errors.New("update non-existing test result")
-	}
-
-	s.info[uuid] = t
-	return nil
+	selectQ := bson.M{"meta_data": 1}
+	err := collection.Find(findQ).Select(selectQ).All(&r)
+	return r, err
 }

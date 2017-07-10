@@ -17,11 +17,15 @@ type httpStats struct {
 }
 
 func metaDataRetriever(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("HAN >>>>>> ", r.Method)
 	//https://golangcode.com/get-a-url-parameter-from-a-request/
 	tags, _ := r.URL.Query()["tag"]
-	fmt.Println("HAN >>>>", tags)
 
-	mds := MetaData()
+	mds, e := TestResultSVs(tags)
+	if e != nil {
+		http.Error(w, e.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(mds)
 }
@@ -98,6 +102,7 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 // testRequestHandler sets up the test and returns the test id for
 // future query
 func testRequestHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("HAN >>>> in testRequestHandler")
 	testType := r.URL.Query().Get("type")
 
 	var rparams perftest.RatingParams

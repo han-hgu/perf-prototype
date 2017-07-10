@@ -1,8 +1,9 @@
 package main
 
 import (
-	"errors"
 	"sync"
+
+	"gopkg.in/mgo.v2/bson"
 
 	"github.com/perf-prototype/perftest"
 	"github.com/perf-prototype/stats"
@@ -19,7 +20,9 @@ var once sync.Once
 func initController() {
 	once.Do(func() {
 		c = &controller{}
-		c.tm = perftest.Create()
+		s := new(perftest.Store)
+		s.Initialize()
+		c.tm = perftest.Create(s)
 	})
 }
 
@@ -28,18 +31,19 @@ func Teardown() {
 	c.tm.Teardown()
 }
 
-// Result returns the test result based on the UUID
+// Result returns the test result based on the test id
 func Result(testID string) (perftest.Result, error) {
 	// query before any test is started
 	initController()
-	return c.tm.Get(testID)
+	return c.tm.Get(bson.ObjectIdHex(testID))
 }
 
 // MetaData returns all test meta data
-func MetaData() []map[string]interface{} {
+func TestResultSVs(tags []string) ([]perftest.TestResultSV, error) {
 	initController()
 
-	return c.tm.GetAll()
+	r, e := c.tm.GetAll(tags)
+	return r, e
 }
 
 // StartRatingTest starts a rating test
@@ -47,11 +51,7 @@ func StartRatingTest(t *perftest.RatingParams) (id string, err error) {
 	initController()
 
 	// allocate uuid for the test run
-	uid, e := newUUID()
-	if e != nil {
-		return "", errors.New("fail to generate test ID")
-	}
-	t.ID = uid
+	t.ID = bson.NewObjectId()
 
 	// for rating test, controller creates and assigns the stats controller to t;
 	// Perftest package should be flexible and only deal
@@ -71,15 +71,15 @@ func StartRatingTest(t *perftest.RatingParams) (id string, err error) {
 
 	if !t.UseExistingFile {
 		if t.FilenamePrefix == "" {
-			t.FilenamePrefix = uid
+			t.FilenamePrefix = t.ID.String()
 		}
 		if e := createFile(t); e != nil {
 			return "", e
 		}
 	}
 
-	c.tm.Add(uid, t)
-	return uid, nil
+	c.tm.Add(t.ID, t)
+	return t.ID.Hex(), nil
 }
 
 // StartBillingTest starts a billing test
@@ -87,11 +87,7 @@ func StartBillingTest(t *perftest.BillingParams) (id string, err error) {
 	initController()
 
 	// allocate uuid for the test run
-	uid, e := newUUID()
-	if e != nil {
-		return "", errors.New("fail to generate test ID")
-	}
-	t.ID = uid
+	t.ID = bson.NewObjectId()
 
 	// for rating test, controller creates and assigns the stats controller to t;
 	// Perftest package should be flexible and only deal
@@ -109,6 +105,6 @@ func StartBillingTest(t *perftest.BillingParams) (id string, err error) {
 	}
 	t.TestParams.DbController = sc
 
-	c.tm.Add(uid, t)
-	return uid, nil
+	c.tm.Add(t.ID, t)
+	return t.ID.String(), nil
 }

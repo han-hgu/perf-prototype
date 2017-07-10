@@ -78,9 +78,11 @@ func createWorker(tm *Manager, t Params) *worker {
 	tr.Done = false
 	tr.Cmt = t.Comment()
 	tr.Keywords = t.Keywords()
-	tr.DBConfig = t.DBConfig()
 
-	if e := w.sc.UpdateDBParameters(t.DBConfig().Database, &(tr.DBParams)); e != nil {
+	// Update app parameters
+	tr.AppConf = *t.AppConfig()
+
+	if e := w.sc.UpdateDBParameters(t.DBConfig(), &(tr.DBParams)); e != nil {
 		log.Fatalf("ERR: update system parameters failed: %v", e)
 	}
 
@@ -149,7 +151,7 @@ func (w *worker) TrackKPI() {
 	go w.TrackDBSysCPU(&wg, dbsysCPU)
 
 	wg.Wait()
-	log.Printf("INFO: DB KPI takes %v to complete.\n", time.Since(kpiStart))
+	log.Printf("INFO: KPI tracking takes %v to complete.\n", time.Since(kpiStart))
 
 	if *lreads >= w.ti.Result.DBServerStats().LReadsBase {
 		w.ti.Result.AddLogicalReads(*lreads - w.ti.Result.DBServerStats().LReadsBase)
@@ -188,7 +190,7 @@ func (w *worker) TrackAppServerKPI(wg *sync.WaitGroup, cpu *float32, mem *float3
 	var pfstats PerfMonStats
 	rsp, e := w.appStatsC.Get(w.ti.Params.AppConfig().URL)
 	if e != nil {
-		//fmt.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
+		fmt.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
 	} else {
 		json.NewDecoder(rsp.Body).Decode(&pfstats)
 	}
@@ -215,7 +217,6 @@ func (w *worker) TrackDBSysCPU(wg *sync.WaitGroup, cpu *float32) {
 	*cpu = pfstats.CPU
 }
 
-// if the test is completed, update the store too
 func (w *worker) update() {
 	if w.ti.Result.Result().Done {
 		return
@@ -240,7 +241,6 @@ func (w *worker) update() {
 	return
 }
 
-//
 func (w *worker) sendResult() {
 	w.Response <- w.ti.Result
 }
@@ -259,7 +259,7 @@ func (w *worker) run() {
 	for {
 		if w.ti.Result.Result().Done {
 			w.once.Do(func() {
-				w.tm.s.add(w.ti.Params.TestID(), w.ti)
+				w.tm.s.add(w.ti.Result)
 				timer.Stop()
 			})
 		}

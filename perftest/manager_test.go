@@ -6,7 +6,11 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"gopkg.in/mgo.v2/bson"
 )
+
+var testStore = new(mockStore)
 
 type mockStatsController struct {
 }
@@ -23,7 +27,7 @@ func (*mockStatsController) UpdateBaselineIDs(dbIDTracker *DBIDTracker) error {
 	return nil
 }
 
-func (*mockStatsController) UpdateDBParameters(dbname string, dbp *DBParams) error {
+func (*mockStatsController) UpdateDBParameters(dbConf *DBConf, dbp *DBParams) error {
 	return nil
 }
 
@@ -35,23 +39,30 @@ func (*mockStatsController) TrackKPI(wg *sync.WaitGroup, dbname string, cpu *flo
 }
 
 func TestCreate(t *testing.T) {
-	m := Create()
+	testStore.Initialize()
+	m := Create(testStore)
 
-	if len(m.s.info) != 0 {
+	trs, err := m.GetAll(nil)
+	if err != nil || len(trs) != 0 {
 		t.Error("Create() creates a manager")
+	}
+	if m.workerMap == nil {
+		t.Error("Manager's worker map initialized")
 	}
 }
 
 func TestAdd(t *testing.T) {
 	sc := mockStatsController{}
-	m := Create()
+	testStore.Initialize()
+	m := Create(testStore)
 	tp := RatingParams{}
 	tp.DbController = &sc
-	m.Add("abc", &tp)
+	ntID := bson.NewObjectId()
+	m.Add(ntID, &tp)
 
 	m.RLock()
 	defer m.RUnlock()
-	w, ok := m.workerMap["abc"]
+	w, ok := m.workerMap[ntID]
 	if !ok {
 		t.Error("workerMap updated")
 	}
@@ -62,8 +73,9 @@ func TestAdd(t *testing.T) {
 }
 
 func TestGetInvalidTest(t *testing.T) {
-	m := Create()
-	if _, e := m.Get("InvalidTestID"); e == nil {
+	testStore.Initialize()
+	m := Create(testStore)
+	if _, e := m.Get(bson.NewObjectId()); e == nil {
 		t.Errorf("Invalid error message received, expect %v, actual %v", errors.New("test doesn't exist"), e)
 	}
 }
@@ -79,10 +91,13 @@ func TestGetValidTestWithWorkerRegistered(t *testing.T) {
 	rp.TestParams = tp
 	rp.DbController = &sc
 
-	m := Create()
-	m.Add("abc", &rp)
+	testStore.Initialize()
+	m := Create(testStore)
 
-	r, e := m.Get("abc")
+	testID := bson.NewObjectId()
+	m.Add(testID, &rp)
+
+	r, e := m.Get(testID)
 	if e != nil {
 		t.Error("Worker returns the test result")
 	}
@@ -93,7 +108,8 @@ func TestGetValidTestWithWorkerRegistered(t *testing.T) {
 }
 
 func TestGetValidTestWithWorkerUnRegistered(t *testing.T) {
-	m := Create()
+	testStore.Initialize()
+	m := Create(testStore)
 
 	rre := RatingResult{MinRate: 1,
 		AvgRate:        3,
@@ -105,11 +121,11 @@ func TestGetValidTestWithWorkerUnRegistered(t *testing.T) {
 	tre.Done = false
 
 	rre.TestResult = tre
-	ti := TestInfo{}
-	ti.Result = &rre
+	testID := bson.NewObjectId()
+	rre.ID = testID
 
-	m.s.add("abc", &ti)
-	tra, e := m.Get("abc")
+	m.s.add(&rre)
+	tra, e := m.Get(testID)
 	if e != nil {
 		t.Error("Get test result returns no error")
 	}

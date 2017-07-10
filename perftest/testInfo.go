@@ -3,14 +3,16 @@ package perftest
 import (
 	"sync"
 	"time"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Params interface to abstract out params
 type Params interface {
 	Comment() string
-	TestID() string
+	TestID() bson.ObjectId
 	Controller() iController
-	Keywords() map[string]string
+	Keywords() []string
 	CollectionInterval() string
 	DBConfig() *DBConf
 	AppConfig() *AppConf
@@ -28,7 +30,7 @@ type Result interface {
 	AddPhysicalReads(v uint64)
 	AppServerStats() *GenericStats
 	DBServerStats() *DBStats
-	TestID() string
+	TestID() bson.ObjectId
 	CollectionInterval() string
 	ChartTitle() string
 	MetaData() Metadata
@@ -40,20 +42,22 @@ type TestInfo struct {
 	Result Result
 }
 
-// PerfMonStats to hold the stats from perfmon
+// PerfMonStats stores the stats from perfmon
 type PerfMonStats struct {
 	Mem float32 `json:"mem"`
 	CPU float32 `json:"cpu"`
 }
 
-// DBConf for database connection information
+// DBConf for database connection information and the addtional info which will
+// will be saved in the result meta data portion
 type DBConf struct {
-	Server   string `json:"ip"`
-	Port     int    `json:"port"`
-	Database string `json:"db_name"`
-	UID      string `json:"uid"`
-	Pwd      string `json:"password"`
-	URL      string `json:"perfmon_url"`
+	Server        string            `json:"ip"`
+	Port          int               `json:"port"`
+	Database      string            `json:"db_name"`
+	UID           string            `json:"uid"`
+	Pwd           string            `json:"password"`
+	URL           string            `json:"perfmon_url"`
+	AddtionalInfo map[string]string `json:"additional_info"`
 }
 
 // ChartConf for the configuration of how the data would be plotted
@@ -63,19 +67,22 @@ type ChartConf struct {
 
 // AppConf for perfmon url
 type AppConf struct {
-	URL string `json:"perfmon_url"`
+	Version       string            `json:"version" bson:"version"`
+	Options       []string          `json:"EIP_option" bson:"EIP_option"`
+	URL           string            `json:"perfmon_url" bson:"perfmon_url"`
+	AddtionalInfo map[string]string `json:"additional_info,omitempty" bson:"additional_info,omitempty"`
 }
 
 // TestParams to hold common test parameters for all test types
 type TestParams struct {
-	ID           string            `json:"-"`
-	DBConf       DBConf            `json:"db_config"`
-	AppConf      AppConf           `json:"app_config"`
-	ChartConf    ChartConf         `json:"chart_config"`
-	Cmt          string            `json:"comment"`
-	Kwords       map[string]string `json:"tags"`
-	DbController iController       `json:"-"`
-	CInterval    string            `json:"collection_interval"`
+	ID           bson.ObjectId `json:"-"`
+	DBConf       DBConf        `json:"db_config"`
+	AppConf      AppConf       `json:"app_config"`
+	ChartConf    ChartConf     `json:"chart_config"`
+	Cmt          string        `json:"comment"`
+	Kwords       []string      `json:"tags"`
+	CInterval    string        `json:"collection_interval"`
+	DbController iController   `json:"-"`
 }
 
 // Comment returns the Comment field
@@ -84,7 +91,7 @@ func (tp *TestParams) Comment() string {
 }
 
 // TestID returns the test ID
-func (tp *TestParams) TestID() string {
+func (tp *TestParams) TestID() bson.ObjectId {
 	return tp.ID
 }
 
@@ -93,8 +100,8 @@ func (tp *TestParams) Controller() iController {
 	return tp.DbController
 }
 
-// Keywords returns the keywords from the params
-func (tp *TestParams) Keywords() map[string]string {
+// Keywords returns the tags from the params
+func (tp *TestParams) Keywords() []string {
 	return tp.Kwords
 }
 
@@ -151,9 +158,12 @@ type BillingParams struct {
 	OwnerName string `json:"owner_name"`
 }
 
-// DBParams stores the db parameters which could impact performance
+// DBParams stores the db parameters
 type DBParams struct {
-	CompatibilityLevel uint8 `json:"compatibility_level"`
+	Database           string            `json:"db_name" bson:"db_name"`
+	URL                string            `json:"perfmon_url" bson:"perfmon_url"`
+	CompatibilityLevel uint8             `json:"compatibility_level" bson:"compatibility_level"`
+	AddtionalInfo      map[string]string `json:"additional_info,omitempty" bson:"additional_info,omitempty"`
 }
 
 // GenericStats for CPU and memory
@@ -178,35 +188,43 @@ type DBStats struct {
 	PReads       []uint64 `json:"physical_reads,omitempty"`
 }
 
-// Metadata to store the meta data for the test, this is to make the display
-// easier and
+// Metadata to store the meta data for the test, this is to make the search and
+// display more user friendly
 type Metadata struct {
-	Type      string            `json:"test_type" bson:"test_type"`
-	StartTime time.Time         `json:"start_date" bson:"start_date"`
-	Done      bool              `json:"test_completed" bson:"start_date"`
-	Duration  string            `json:"test_duration,omitempty" bson:"start_date"`
-	Keywords  map[string]string `json:"tags,omitempty" bson:"start_date"`
-	Cmt       string            `json:"comment,omitempty" bson:"start_date"`
-	CInterval string            `json:"collection_interval" bson:"start_date"`
-	DBConfig  *DBConf           `json:"db_config" bson:"start_date"`
-	DBParams  DBParams          `json:"database_parameters" bson:"start_date"`
-	CTitle    string            `json:"-" bson:"chart_title"`
+	Type      string    `json:"test_type" bson:"test_type"`
+	StartTime time.Time `json:"start_date" bson:"start_date"`
+	Done      bool      `json:"test_completed" bson:"test_completed"`
+	Duration  string    `json:"test_duration,omitempty" bson:"test_duration"`
+	Keywords  []string  `json:"tags,omitempty" bson:"tags"`
+	Cmt       string    `json:"comment,omitempty" bson:"comment"`
+	CInterval string    `json:"collection_interval" bson:"collection_interval"`
+	AppConf   AppConf   `json:"app_param" bson:"app_param"`
+	DBParams  DBParams  `json:"db_param" bson:"db_param"`
+	CTitle    string    `json:"-" bson:"chart_title"`
+}
+
+// TestResultSV stands for short-version test result, only this will reside in
+// the memory from a search, the complete result should be stored in a cache
+// to control the memory footprint of the program
+type TestResultSV struct {
+	ID bson.ObjectId `json:"id" bson:"_id"`
+	Md Metadata      `json:"meta_data" bson:"meta_data"`
 }
 
 // TestResult to store generic results
 type TestResult struct {
-	ID       string `json:"id" bson:"_id"`
+	ID       bson.ObjectId `json:"id" bson:"_id"`
 	Metadata `json:"meta_data" bson:"meta_data"`
-	AppStats GenericStats `json:"app_server_stats" bson:"app_server_stats"`
-	DBStats  DBStats      `json:"database_server_stats" bson:"database_server_stats"`
+	AppStats GenericStats `json:"app_stats" bson:"app_stats"`
+	DBStats  DBStats      `json:"db_stats" bson:"db_stats"`
 }
 
 // TestID to get the test ID
-func (tr *TestResult) TestID() string {
+func (tr *TestResult) TestID() bson.ObjectId {
 	return tr.ID
 }
 
-// CollectionInterval returns the collection interval from the
+// CollectionInterval returns the collection interval
 func (tr *TestResult) CollectionInterval() string {
 	return tr.CInterval
 }
@@ -214,7 +232,7 @@ func (tr *TestResult) CollectionInterval() string {
 // ChartTitle returns the title for the chart
 func (tr *TestResult) ChartTitle() string {
 	if tr.CTitle == "" {
-		return tr.TestID()
+		return tr.TestID().Hex()
 	}
 
 	return tr.CTitle
@@ -261,8 +279,8 @@ func (tr *TestResult) AddAppServerMem(v float32) {
 	}
 }
 
-// AddLogicalReads adds the number of logical reads collected from the interval
-// to the test result
+// AddLogicalReads adds the number of logical reads per collection interval to
+// test result
 func (tr *TestResult) AddLogicalReads(v uint64) {
 	if tr.DBStats.LReads == nil {
 		tr.DBStats.LReads = make([]uint64, 0)
@@ -272,8 +290,8 @@ func (tr *TestResult) AddLogicalReads(v uint64) {
 	tr.DBStats.LReadsTotal += v
 }
 
-// AddLogicalWrites adds the number of logical writes collected from the interval
-// to the test result
+// AddLogicalWrites adds the number of logical per collection interval to test
+// result
 func (tr *TestResult) AddLogicalWrites(v uint64) {
 	if tr.DBStats.LWrites == nil {
 		tr.DBStats.LWrites = make([]uint64, 0)
@@ -283,8 +301,8 @@ func (tr *TestResult) AddLogicalWrites(v uint64) {
 	tr.DBStats.LWritesTotal += v
 }
 
-// AddPhysicalReads adds the number of physical reads collected from the interval
-// to the test result
+// AddPhysicalReads adds the number of physical reads per collection to test
+// result
 func (tr *TestResult) AddPhysicalReads(v uint64) {
 	if tr.DBStats.PReads == nil {
 		tr.DBStats.PReads = make([]uint64, 0)
@@ -294,47 +312,47 @@ func (tr *TestResult) AddPhysicalReads(v uint64) {
 	tr.DBStats.PReadsTotal += v
 }
 
-// MetaData returns the meta data
+// MetaData returns the meta data section from the test result
 func (tr *TestResult) MetaData() Metadata {
 	return tr.Metadata
 }
 
-// FetchAppServerCPUStats fetches the CPU stats of app server
+// FetchAppServerCPUStats fetches app server CPU stats
 func FetchAppServerCPUStats(r Result) []float32 {
 	return r.AppServerStats().CPU
 }
 
-// FetchAppServerMemStats fetches the mem stats of app server
+// FetchAppServerMemStats fetches app server mem stats
 func FetchAppServerMemStats(r Result) []float32 {
 	return r.AppServerStats().Mem
 }
 
-// FetchDBServerCPUStats fetches the CPU stats of database server
+// FetchDBServerCPUStats fetches db CPU stats
 func FetchDBServerCPUStats(r Result) []float32 {
 	return r.DBServerStats().CPU
 }
 
-// FetchDBServerMemStats fetches the mem stats of database server
+// FetchDBServerMemStats fetches db mem stats
 func FetchDBServerMemStats(r Result) []float32 {
 	return r.DBServerStats().Mem
 }
 
-// FetchDBServerLReads fetches the logical reads of database server
+// FetchDBServerLReads fetches db logical reads
 func FetchDBServerLReads(r Result) []uint64 {
 	return r.DBServerStats().LReads
 }
 
-// FetchDBServerPReads fetches the physical reads
+// FetchDBServerPReads fetches db physical reads
 func FetchDBServerPReads(r Result) []uint64 {
 	return r.DBServerStats().PReads
 }
 
-// FetchDBServerLWrites fetches the logical writes
+// FetchDBServerLWrites fetches db logical writes
 func FetchDBServerLWrites(r Result) []uint64 {
 	return r.DBServerStats().LWrites
 }
 
-// FetchRates fetches the rates
+// FetchRates fetches rates
 func FetchRates(r Result) []float32 {
 	rr, ok := r.(*RatingResult)
 	if !ok {
@@ -343,7 +361,7 @@ func FetchRates(r Result) []float32 {
 	return rr.Rates
 }
 
-// FetchUDRProcessedTrend fetches the udr processed trend
+// FetchUDRProcessedTrend fetches udr processed trend
 func FetchUDRProcessedTrend(r Result) []uint64 {
 	rr, ok := r.(*RatingResult)
 	if !ok {
@@ -352,12 +370,12 @@ func FetchUDRProcessedTrend(r Result) []uint64 {
 	return rr.UDRProcessedTrend
 }
 
-// AppServerStats to return the stats object for app server
+// AppServerStats returns app server stats
 func (tr *TestResult) AppServerStats() *GenericStats {
 	return &(tr.AppStats)
 }
 
-// AddDBServerCPU adds a cpu sample for the database
+// AddDBServerCPU adds db cpu sample
 func (tr *TestResult) AddDBServerCPU(v float32) {
 	if tr.DBStats.CPU == nil {
 		tr.DBStats.CPU = make([]float32, 0)
@@ -369,7 +387,7 @@ func (tr *TestResult) AddDBServerCPU(v float32) {
 	}
 }
 
-// AddDBServerMem adds a memory sample for the database
+// AddDBServerMem adds db memory sample
 func (tr *TestResult) AddDBServerMem(v float32) {
 	if tr.DBStats.Mem == nil {
 		tr.DBStats.Mem = make([]float32, 0)
@@ -381,37 +399,37 @@ func (tr *TestResult) AddDBServerMem(v float32) {
 	}
 }
 
-// DBServerStats to return the stats object for db server
+// DBServerStats returns db stats object
 func (tr *TestResult) DBServerStats() *DBStats {
 	return &(tr.DBStats)
 }
 
-// RatingResult to save the rate information
+// RatingResult stores rating stats
 type RatingResult struct {
-	TestResult
+	TestResult            `bson:",inline"`
 	MinRate               float32   `json:"-"`
-	AvgRate               float32   `json:"udr_rate_avg,omitempty"`
-	UDRProcessed          uint64    `json:"udr_created"`
-	UDRExceptionProcessed uint64    `json:"udr_exception_created"`
-	FilesCompleted        uint32    `json:"files_completed"`
-	Rates                 []float32 `json:"udr_rates,omitempty"`
-	UDRProcessedTrend     []uint64  `json:"udr_created_trend,omitempty"`
+	AvgRate               float32   `json:"udr_rate_avg,omitempty" bson:"udr_rate_avg"`
+	UDRProcessed          uint64    `json:"udr_created" bson:"udr_created"`
+	UDRExceptionProcessed uint64    `json:"udr_exception_created" bson:"udr_exception_created"`
+	FilesCompleted        uint32    `json:"files_completed" bson:"files_completed"`
+	Rates                 []float32 `json:"udr_rates,omitempty" bson:"udr_rates"`
+	UDRProcessedTrend     []uint64  `json:"udr_created_trend,omitempty" bson:"udr_created_trend"`
 }
 
-// BillingResult to save the billing information
+// BillingResult stores billing stats
 type BillingResult struct {
-	TestResult
-	OwnerName                string    `json:"owner_name"`
-	BillingDuration          string    `json:"billing_duration,omitempty"`
-	InvoiceRenderDuration    string    `json:"invoice_render_duration,omitempty"`
-	UserPackageBilled        uint64    `json:"user_package_billed,omitempty"`
-	UserPackageBillRate      []uint32  `json:"user_package_bill_rate,omitempty"`
+	TestResult               `bson:",inline"`
+	OwnerName                string    `json:"owner_name" bson:"owner_name"`
+	BillingDuration          string    `json:"billing_duration,omitempty" bson:"billing_duration"`
+	InvoiceRenderDuration    string    `json:"invoice_render_duration,omitempty" bson:"invoice_render_duration"`
+	UserPackageBilled        uint64    `json:"user_package_billed,omitempty" bson:"user_package_billed"`
+	UserPackageBillRate      []uint32  `json:"user_package_bill_rate,omitempty" bson:"user_package_bill_rate"`
 	InvoiceRenderStartTime   time.Time `json:"-"`
 	InvoiceRenderEndTime     time.Time `json:"-"`
-	InvoiceRenderEndTimeOnce sync.Once `json:"-"`
+	InvoiceRenderEndTimeOnce sync.Once `json:"-" bson:"-"`
 	BillingStartTime         time.Time `json:"-"`
 	BillingEndTime           time.Time `json:"-"`
-	BillingEndTimeOnce       sync.Once `json:"-"`
+	BillingEndTimeOnce       sync.Once `json:"-" bson:"-"`
 	BillrunEndTime           time.Time `json:"-"`
-	BillrunEndOnce           sync.Once `json:"-"`
+	BillrunEndOnce           sync.Once `json:"-" bson:"-"`
 }

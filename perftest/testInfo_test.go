@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 func TestGetComment(t *testing.T) {
@@ -16,15 +18,16 @@ func TestGetComment(t *testing.T) {
 
 func TestGetTestID(t *testing.T) {
 	var rp RatingParams
-	tp := TestParams{ID: "abc"}
+	id := bson.NewObjectId()
+	tp := TestParams{ID: id}
 	rp.TestParams = tp
-	if rp.TestID() != tp.ID {
+	if rp.TestID() != id {
 		t.Error("TestID() returns correct value")
 	}
 }
 
 func TestGetTestIDFromResult(t *testing.T) {
-	testID := "TestGetTestIDFromResult"
+	testID := bson.NewObjectId()
 	tr := TestResult{}
 	tr.ID = testID
 	if tr.TestID() != testID {
@@ -33,12 +36,12 @@ func TestGetTestIDFromResult(t *testing.T) {
 }
 
 func TestChartTitleFromResult(t *testing.T) {
-	testID := "testIDTestChartTitleFromResult"
+	testID := bson.NewObjectId()
 	tr := TestResult{}
 
 	tr.ID = testID
 	// No title in the TestResult
-	if tr.ChartTitle() != testID {
+	if tr.ChartTitle() != testID.Hex() {
 		t.Error("Test ID is used as the chart title if chart title is empty")
 	}
 

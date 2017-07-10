@@ -4,13 +4,17 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 func TestCreateWorkerForRating(t *testing.T) {
-	m := Create()
+	testStore := new(mockStore)
+	testStore.Initialize()
+	m := Create(testStore)
 	var rp RatingParams
 	sc := mockStatsController{}
-	tp := TestParams{ID: "abc"}
+	tp := TestParams{ID: bson.NewObjectId()}
 	tp.DbController = &sc
 	tp.Cmt = "This is a comment."
 	rp.TestParams = tp
@@ -22,7 +26,9 @@ func TestCreateWorkerForRating(t *testing.T) {
 }
 
 func TestCreateWorkerForBilling(t *testing.T) {
-	m := Create()
+	testStore := new(mockStore)
+	testStore.Initialize()
+	m := Create(testStore)
 	var bp BillingParams
 	sc := mockStatsController{}
 
@@ -41,9 +47,11 @@ func TestCreateWorkerForBilling(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	m := Create()
+	testStore := new(mockStore)
+	testStore.Initialize()
+	m := Create(testStore)
 	var rp RatingParams
-	tp := TestParams{ID: "abc"}
+	tp := TestParams{ID: bson.NewObjectId()}
 	tp.Cmt = "This is a comment."
 	sc := mockStatsController{}
 	tp.DbController = &sc
@@ -63,9 +71,12 @@ func TestRun(t *testing.T) {
 }
 
 func TestWorkerAddResultsToStoreWhenDone(t *testing.T) {
-	m := Create()
+	testStore := new(mockStore)
+	testStore.Initialize()
+	m := Create(testStore)
 	var rp RatingParams
-	tp := TestParams{ID: "abc"}
+	testID := bson.NewObjectId()
+	tp := TestParams{ID: testID}
 	tp.Cmt = "This is a comment."
 	sc := mockStatsController{}
 	tp.DbController = &sc
@@ -79,12 +90,12 @@ func TestWorkerAddResultsToStoreWhenDone(t *testing.T) {
 	w.Request <- struct{}{}
 	<-w.Response
 
-	w.tm.workerMap["abc"] = w
+	w.tm.workerMap[testID] = w
 
-	go w.tm.Get("abc")
-	go w.tm.Get("abc")
-	go w.tm.Get("abc")
-	trs, e := w.tm.Get("abc")
+	go w.tm.Get(testID)
+	go w.tm.Get(testID)
+	go w.tm.Get(testID)
+	trs, e := w.tm.Get(testID)
 	if e != nil {
 		t.Error("Worker saves the result to store when test is done")
 	}
