@@ -134,3 +134,31 @@ func TestGetValidTestWithWorkerUnRegistered(t *testing.T) {
 		t.Errorf("Get test result: expect %v, actual %v", &rre, tra)
 	}
 }
+
+func TestContains(t *testing.T) {
+	var a, b []string
+
+	if !contains(a, b) {
+		t.Error("a nil slice is contained in another nil slice")
+	}
+
+	b = []string{"abc", "def"}
+	if !contains(a, b) {
+		t.Error("a nil slice is contained in any non-nil slice")
+	}
+
+	a = []string{"x"}
+	if contains(a, b) {
+		t.Error("slices have different elements so they are not contained")
+	}
+
+	a = []string{"abc"}
+	if !contains(a, b) {
+		t.Error("All elements in slice A is in slice B, contains(A, B) returns true")
+	}
+
+	a = []string{"abc", "def"}
+	if !contains(a, b) {
+		t.Error("contains(A, A) returns true")
+	}
+}

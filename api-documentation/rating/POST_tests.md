@@ -55,12 +55,57 @@ An array with the following keys and values:
 ## Example
 **Request**
 
-    POST v1/rating/test
+    POST v1/test?type=rating
 
 **Body**
 ```json
-{
-    "amount_field_index":
+{  
+	"db_config":{
+		"ip": "192.168.1.47",
+		"port": 1433,
+		"db_name": "EngageIP_NonRevenue",
+		"uid": "sa",
+		"password": "Q@te$t#1",
+		"perfmon_url": "http://192.168.1.47:5000/v1/stats",
+		"additional_info": {
+			"CPU": "2 x Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz, 2500 Mhz, 12 Core(s), 24 Logical Processor(s)",
+			"RAM": "256 GB",
+			"OS": "Microsoft Windows Server 2012 R2 Standard",
+			"system_model": "PowerEdge R730xd",
+			"comment": "Specs from Windows System Information"
+		}
+	},
+
+	"app_config": {
+		"version": "EngageIP 8.5.26.5-Hotfix.6RC24",
+		"perfmon_url": "http://192.168.1.51:5000/v1/stats",
+		"additional_info": {
+			"CPU": "Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz, 2500 Mhz, 8 Core(s), 8 Logical Processor(s)",
+			"VM": "True",
+			"OS": "Microsoft Windows Server 2012 R2 Datacenter",
+			"system_model": "Virtual Machine",
+			"feed": "Broadworks",
+			"comment": "Specs from Windows System Information"
+		}
+	},
+
+	"chart_config": {
+		"title": "8.5.26.5-Hotfix.6RC24"
+	},
+
+	"tags": [
+		"8.5.26.5",
+		"Momentum",
+		"Rating",
+		"TS-4240",
+		"TS-3038",
+		"Hotfix.6",
+		"Broadworks"
+	],
+
+   "use_existing_file": true,
+   "collection_interval": "30s",
+   "number_of_files": 1549
 }
 ```
 

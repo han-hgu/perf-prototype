@@ -81,6 +81,22 @@ func (tm *Manager) Get(testID bson.ObjectId) (Result, error) {
 	return nil, errors.New("test doesn't exist")
 }
 
+// return true if all slice elements of A can be found in B(A is a sub-slice of B)
+func contains(A []string, B []string) bool {
+	keys := make(map[string]struct{})
+	for _, v := range B {
+		keys[v] = struct{}{}
+	}
+
+	for _, v := range A {
+		if _, ok := keys[v]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
 // GetAll returns all test meta data with the provided tags, if tags is nil,
 // return all test meta data
 func (tm *Manager) GetAll(tags []string) ([]TestResultSV, error) {
@@ -91,9 +107,11 @@ func (tm *Manager) GetAll(tags []string) ([]TestResultSV, error) {
 		trsv := TestResultSV{}
 		w.Request <- struct{}{}
 		m := <-w.Response
-		trsv.ID = m.TestID()
-		trsv.Md = m.MetaData()
-		retVal = append(retVal, trsv)
+		if contains(tags, m.MetaData().Keywords) {
+			trsv.ID = m.TestID()
+			trsv.Md = m.MetaData()
+			retVal = append(retVal, trsv)
+		}
 	}
 	tm.RUnlock()
 

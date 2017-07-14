@@ -84,9 +84,7 @@ func (c *Controller) GetBillingStartTime(wg *sync.WaitGroup, owner string, last 
 		defer wg.Done()
 	}
 	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Starting Bill Run for owner ''%v''' order by id desc", last, owner)
-	fmt.Println("HAN >>>> q for billing start time: ", q)
 	c.getLastVal(q, []interface{}{billingStartTime})
-	fmt.Printf("HAN >>>> get billing start time for owner %v: %v\n", owner, billingStartTime.String())
 }
 
 // GetBillingEndTime gets the billing end time from the latest event log entries
@@ -95,9 +93,7 @@ func (c *Controller) GetBillingEndTime(wg *sync.WaitGroup, owner string, last ui
 		defer wg.Done()
 	}
 	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Billing for owner ''%v''%%' order by id desc", last, owner)
-	fmt.Println("HAN >>>> q for billing end time: ", q)
 	c.getLastVal(q, []interface{}{billingEndTime})
-	fmt.Printf("HAN >>>> get billing end time for owner %v: %v\n", owner, billingEndTime.String())
 }
 
 // GetInvoiceRenderStartTime gets the invoice render start time from the latest event log entries
