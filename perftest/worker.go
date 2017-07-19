@@ -18,7 +18,7 @@ const (
 	BILLING
 )
 
-var waitTime = 10 * time.Second
+var waitTime = 30 * time.Second
 
 // want the http client to not affect the worker at all so imminent timeout
 const appClientReqTimeout = 300 * time.Millisecond

@@ -1,7 +1,10 @@
 package perftest
 
 import (
+	"encoding/json"
 	"log"
+
+	"github.com/allegro/bigcache"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -19,6 +22,7 @@ var (
 // Store to save test information
 type Store struct {
 	mgoSession *mgo.Session
+	cache      *bigcache.BigCache
 }
 
 // Initialize initializes the store
@@ -30,6 +34,12 @@ func (s *Store) Initialize() {
 	db.SetMode(mgo.Monotonic, true)
 	db.SetSafe(&mgo.Safe{})
 	s.mgoSession = db
+
+	// should be able to evict immediately
+	s.cache, err = bigcache.NewBigCache(bigcache.DefaultConfig(0))
+	if err != nil {
+		log.Fatalf("ERR: fail to intialize cache: %v", err)
+	}
 }
 
 // Teardown shuts down the store
@@ -37,7 +47,23 @@ func (s *Store) Teardown() {
 	s.mgoSession.Close()
 }
 
+func (s *Store) cacheResult(r Result) error {
+	// cache it
+	b, e := json.Marshal(r)
+	if e != nil {
+		return e
+	}
+	s.cache.Set(r.TestID().Hex(), b)
+	return nil
+}
+
 func (s *Store) add(r Result) error {
+	// cache it
+	if e := s.cacheResult(r); e != nil {
+		log.Printf("WARNING: failed to cache result, %v", e)
+	}
+
+	// store it
 	session := s.mgoSession.Copy()
 	defer session.Close()
 
@@ -52,6 +78,25 @@ func (s *Store) add(r Result) error {
 
 // get testInfo from the store
 func (s *Store) get(id bson.ObjectId) (r Result, err error) {
+	// check if it is already cached, if there is any error grab from
+	// database
+	if rb, e := s.cache.Get(id.Hex()); e == nil {
+		var gr GeneralResult
+		if e := json.Unmarshal(rb, &gr); e == nil {
+			if gr.MetaData().Type == "rating" {
+				var rr RatingResult
+				if e := json.Unmarshal(rb, &rr); e == nil {
+					return &rr, nil
+				}
+			} else if gr.MetaData().Type == "billing" {
+				var br BillingResult
+				if e := json.Unmarshal(rb, &br); e == nil {
+					return &br, nil
+				}
+			}
+		}
+	}
+
 	session := s.mgoSession.Copy()
 	defer session.Close()
 
@@ -68,6 +113,11 @@ func (s *Store) get(id bson.ObjectId) (r Result, err error) {
 	}
 
 	err = collection.FindId(id).One(r)
+
+	// cache result
+	if e := s.cacheResult(r); e != nil {
+		log.Printf("WARNING: failed to cache result, %v", e)
+	}
 	return r, err
 }
 

@@ -106,5 +106,5 @@ func StartBillingTest(t *perftest.BillingParams) (id string, err error) {
 	t.TestParams.DbController = sc
 
 	c.tm.Add(t.ID, t)
-	return t.ID.String(), nil
+	return t.ID.Hex(), nil
 }

@@ -404,6 +404,11 @@ func (tr *TestResult) DBServerStats() *DBStats {
 	return &(tr.DBStats)
 }
 
+// GeneralResult enables us to blindly unmarshal and check the test type
+type GeneralResult struct {
+	TestResult `bson:",inline"`
+}
+
 // RatingResult stores rating stats
 type RatingResult struct {
 	TestResult            `bson:",inline"`
