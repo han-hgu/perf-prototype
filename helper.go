@@ -136,14 +136,17 @@ func DBCPUSamplesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
 	return collectSamplesForTemplate("Database Server CPU utilization", trs, perftest.FetchDBServerCPUStats)
 }
 
+// DBLogicalReadsForTemplate returns database logical reads for google charts
 func DBLogicalReadsForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
 	return collectSamplesForTemplateUint64("Database Logical Reads", trs, perftest.FetchDBServerLReads)
 }
 
+// DBPhysicalReadsForTemplate returns database physical reads for google charts
 func DBPhysicalReadsForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
 	return collectSamplesForTemplateUint64("Database Physical Reads", trs, perftest.FetchDBServerPReads)
 }
 
+// DBLogicalWrites returns database logical writes for google charts
 func DBLogicalWrites(trs []perftest.Result) (*templateDataFeedUint64, error) {
 	return collectSamplesForTemplateUint64("Database Logical Writes", trs, perftest.FetchDBServerLWrites)
 }

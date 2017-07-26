@@ -1,24 +1,18 @@
-# Perf
-EngageIP performance testing framework.
+# EIP Performance Test Framework
+The framework is responsible for monitoring test progress, collecting KPIs and
+managing test results.
+The API is REST API, return format for all endpoints is JSON.
 
-## Getting Started
-Under development.
+[How To Interact With Logisense Internal Server.](https://github.com/han-hgu/perf-prototype/blob/master/howto.md)
 
-## Building
-You need a Go development to build the executable. To install all dependencies, change directory into the project and run:
 
-    go get ./...
 
-You can cross compile it using
-`GOOS` and `GOARCH`
 
-    GOOS=windows GOARCH=amd64 go build
 
-## Running
-- Running the executable starts up a server listening on port 4999
+
+
 
 ## Endpoints
-
 ### Rating
 - **[<code>GET</code> /rating/tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/GET_tests.md)**
 - **[<code>GET</code> /rating/tests/:id](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/GET_tests_id.md)**
@@ -27,12 +21,21 @@ You can cross compile it using
 ### Billing
 
 
-## FAQ
+## Building
+You need a Go development to build the executable. To install all dependencies, change directory into the project and run:
 
+    go get ./...
+
+You can cross compile it using
+`GOOS` and `GOARCH`, to build a Windows 64-bit version for example:
+
+    GOOS=windows GOARCH=amd64 go build
+
+## Running
+- Running the executable starts up a server on port 4999
 
 ## Requirements
-- Rating perf testing
-- Billing perf testing
+- The system is able to
 - File drop service to generate and create the input files in the designed location
 - Controllable rate for file drop
 - Rates are captured through out the whole process not just an average value
@@ -43,11 +46,14 @@ You can cross compile it using
 
 ## Design Decisions
 ### Database
+- [MongoDB](https://www.mongodb.com/) for saving test results
+- [MongoDB Go driver](https://labix.org/mgo)
 
-### Caching
+### Cache
+- [BigCache](https://github.com/allegro/bigcache)
 
 ## TODO
-- Switch to use Context package
+- Use [Context package](https://golang.org/pkg/context/)
 
 [OAuth]: http://oauth.net/core/1.0a/
 [Beginner’s Guide]: http://hueniverse.com/oauth/

@@ -39,6 +39,8 @@ func TestStoreAdd(t *testing.T) {
 	tr.AddLogicalReads(1)
 	tr.AddLogicalWrites(2)
 	tr.AddPhysicalReads(3)
+	tr.Metadata.AppConf.SysInfo = make(map[string]interface{}, 0)
+	tr.Metadata.DBParams.SysInfo = make(map[string]interface{}, 0)
 	tr.AppConf.Options = make([]string, 0)
 	tr.ID = bson.NewObjectId()
 	e := s.add(&tr)
@@ -90,6 +92,8 @@ func TestStoreGet(t *testing.T) {
 	tr2.Metadata.CInterval = "15s"
 	tr2.Metadata.CTitle = "my chart"
 	tr2.Metadata.Keywords = []string{"abc"}
+	tr2.Metadata.AppConf.SysInfo = make(map[string]interface{}, 0)
+	tr2.Metadata.DBParams.SysInfo = make(map[string]interface{}, 0)
 	tr2.AddAppServerMem(1.3)
 	tr2.AddAppServerCPU(1.2)
 	tr2.AddDBServerCPU(1.1)
@@ -159,6 +163,8 @@ func TestGetTestResultSVByTags(t *testing.T) {
 	rr3.TestResult.Metadata.Keywords = []string{"rating"}
 	rr3.ID = bson.NewObjectId()
 	rr3.AppConf.Options = []string{"someOption1", "someOption2"}
+	rr3.Metadata.AppConf.SysInfo = make(map[string]interface{}, 0)
+	rr3.Metadata.DBParams.SysInfo = make(map[string]interface{}, 0)
 	rr3SV := TestResultSV{}
 	rr3SV.ID = rr3.ID
 	rr3SV.Md = rr3.MetaData()

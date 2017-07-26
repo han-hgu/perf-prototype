@@ -21,7 +21,7 @@ const (
 var waitTime = 30 * time.Second
 
 // want the http client to not affect the worker at all so imminent timeout
-const appClientReqTimeout = 300 * time.Millisecond
+const appClientReqTimeout = 500 * time.Millisecond
 
 // Worker for stats handling and background sync
 type worker struct {
@@ -81,9 +81,12 @@ func createWorker(tm *Manager, t Params) *worker {
 
 	// Update app parameters
 	tr.AppConf = *t.AppConfig()
+	w.updateAppServerInfo(&(tr.AppConf))
+	w.updateDBServerInfo(t.DBConfig(), &(tr.DBParams))
 
+	// Update db parameters
 	if e := w.sc.UpdateDBParameters(t.DBConfig(), &(tr.DBParams)); e != nil {
-		log.Fatalf("ERR: update system parameters failed: %v", e)
+		log.Fatalf("ERR: update db system parameters failed: %v", e)
 	}
 
 	switch t.(type) {
@@ -188,15 +191,44 @@ func (w *worker) TrackAppServerKPI(wg *sync.WaitGroup, cpu *float32, mem *float3
 	}
 
 	var pfstats PerfMonStats
-	rsp, e := w.appStatsC.Get(w.ti.Params.AppConfig().URL)
+	rsp, e := w.appStatsC.Get(w.ti.Params.AppConfig().URL + "/stats")
+
 	if e != nil {
 		fmt.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
 	} else {
+		defer rsp.Body.Close()
 		json.NewDecoder(rsp.Body).Decode(&pfstats)
 	}
 
 	*cpu = pfstats.CPU
 	*mem = pfstats.Mem
+}
+
+func (w *worker) updateAppServerInfo(ac *AppConf) {
+	ot := w.appStatsC.Timeout
+	w.appStatsC.Timeout = 30 * time.Second
+	rsp, e := w.appStatsC.Get(ac.URL + "/specs")
+	w.appStatsC.Timeout = ot
+
+	if e != nil {
+		fmt.Printf("WARNING: failed to get app server info from %v, error: %v\n", ac.URL+"/specs", e)
+	} else {
+		defer rsp.Body.Close()
+		json.NewDecoder(rsp.Body).Decode(&(ac.SysInfo))
+	}
+}
+
+func (w *worker) updateDBServerInfo(dbc *DBConf, dbp *DBParams) {
+	ot := w.appStatsC.Timeout
+	w.appStatsC.Timeout = 30 * time.Second
+	rsp, e := w.appStatsC.Get(dbc.URL + "/specs")
+	w.appStatsC.Timeout = ot
+	if e != nil {
+		fmt.Printf("WARNING: failed to get database server info from %v, error: %v\n", dbc.URL+"/specs", e)
+	} else {
+		defer rsp.Body.Close()
+		json.NewDecoder(rsp.Body).Decode(&(dbp.SysInfo))
+	}
 }
 
 // TrackDBSysCPU takes the CPU usage of the database server, this is the total
@@ -207,10 +239,12 @@ func (w *worker) TrackDBSysCPU(wg *sync.WaitGroup, cpu *float32) {
 	}
 
 	var pfstats PerfMonStats
-	rsp, e := w.appStatsC.Get(w.ti.Params.DBConfig().URL)
+	rsp, e := w.appStatsC.Get(w.ti.Params.DBConfig().URL + "/stats")
+
 	if e != nil {
 		fmt.Printf("WARNING: failed to get database stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
 	} else {
+		defer rsp.Body.Close()
 		json.NewDecoder(rsp.Body).Decode(&pfstats)
 	}
 

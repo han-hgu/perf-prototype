@@ -64,7 +64,7 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 		if ci == "" {
 			ci = tr.CollectionInterval()
 		} else if tr.CollectionInterval() != ci {
-			http.Error(w, "Unable to draw comparsion graph, test runs must have the same collection intervals", http.StatusBadRequest)
+			http.Error(w, "Unable to draw comparison graph, test runs must have the same collection intervals", http.StatusBadRequest)
 		}
 
 		trs = append(trs, tr)

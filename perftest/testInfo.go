@@ -48,8 +48,8 @@ type PerfMonStats struct {
 	CPU float32 `json:"cpu"`
 }
 
-// DBConf for database connection information and the addtional info which will
-// will be saved in the result meta data portion
+// DBConf for db connection information, and additional info later saved in
+// result metadata portion
 type DBConf struct {
 	Server        string            `json:"ip"`
 	Port          int               `json:"port"`
@@ -67,10 +67,11 @@ type ChartConf struct {
 
 // AppConf for perfmon url
 type AppConf struct {
-	Version       string            `json:"version" bson:"version"`
-	Options       []string          `json:"EIP_option" bson:"EIP_option"`
-	URL           string            `json:"perfmon_url" bson:"perfmon_url"`
-	AddtionalInfo map[string]string `json:"additional_info,omitempty" bson:"additional_info,omitempty"`
+	Version       string                 `json:"version" bson:"version"`
+	Options       []string               `json:"EIP_option" bson:"EIP_option"`
+	URL           string                 `json:"perfmon_url" bson:"perfmon_url"`
+	SysInfo       map[string]interface{} `json:"sys_info" bson:"sys_info"`
+	AddtionalInfo map[string]string      `json:"additional_info,omitempty" bson:"additional_info,omitempty"`
 }
 
 // TestParams to hold common test parameters for all test types
@@ -160,10 +161,11 @@ type BillingParams struct {
 
 // DBParams stores the db parameters
 type DBParams struct {
-	Database           string            `json:"db_name" bson:"db_name"`
-	URL                string            `json:"perfmon_url" bson:"perfmon_url"`
-	CompatibilityLevel uint8             `json:"compatibility_level" bson:"compatibility_level"`
-	AddtionalInfo      map[string]string `json:"additional_info,omitempty" bson:"additional_info,omitempty"`
+	Database           string                 `json:"db_name" bson:"db_name"`
+	URL                string                 `json:"perfmon_url" bson:"perfmon_url"`
+	CompatibilityLevel uint8                  `json:"compatibility_level" bson:"compatibility_level"`
+	SysInfo            map[string]interface{} `json:"sys_info" bson:"sys_info"`
+	AddtionalInfo      map[string]string      `json:"additional_info,omitempty" bson:"additional_info,omitempty"`
 }
 
 // GenericStats for CPU and memory
@@ -188,7 +190,7 @@ type DBStats struct {
 	PReads       []uint64 `json:"physical_reads,omitempty"`
 }
 
-// Metadata to store the meta data for the test, this is to make the search and
+// Metadata to store the metadata for the test, this is to make the search and
 // display more user friendly
 type Metadata struct {
 	Type      string    `json:"test_type" bson:"test_type"`
@@ -200,7 +202,7 @@ type Metadata struct {
 	CInterval string    `json:"collection_interval" bson:"collection_interval"`
 	AppConf   AppConf   `json:"app_param" bson:"app_param"`
 	DBParams  DBParams  `json:"db_param" bson:"db_param"`
-	CTitle    string    `json:"-" bson:"chart_title"`
+	CTitle    string    `json:"chart_title" bson:"chart_title"`
 }
 
 // TestResultSV stands for short-version test result, only this will reside in
@@ -312,7 +314,7 @@ func (tr *TestResult) AddPhysicalReads(v uint64) {
 	tr.DBStats.PReadsTotal += v
 }
 
-// MetaData returns the meta data section from the test result
+// MetaData returns the metadata section from the test result
 func (tr *TestResult) MetaData() Metadata {
 	return tr.Metadata
 }

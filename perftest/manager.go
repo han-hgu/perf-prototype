@@ -53,7 +53,7 @@ func (tm *Manager) Get(testID bson.ObjectId) (Result, error) {
 		defer tm.RUnlock()
 
 		// the request thread never blocks and do it in best effort manner
-		// so we have a race condition of mutliple request thread shutting
+		// so we have a race condition of multiple request thread shutting
 		// down the worker only one wins the others timeout
 		if w, ok := tm.workerMap[testID]; ok {
 			go func() {
@@ -61,8 +61,8 @@ func (tm *Manager) Get(testID bson.ObjectId) (Result, error) {
 				// This is a buffered channel, have to take into account that
 				// the the worker is not able to handle the Exit within 5 sec
 				case w.Exit <- struct{}{}:
-				// If mutliple goroutines send to Exit channel, some of them will
-				// block, this is to prevent the resource leak
+				// If multiple goroutines send to Exit channel, some of them will
+				// block, this is to prevent resource leak
 				case <-time.After(5 * time.Second):
 				}
 			}()
@@ -97,8 +97,8 @@ func contains(A []string, B []string) bool {
 	return true
 }
 
-// GetAll returns all test meta data with the provided tags, if tags is nil,
-// return all test meta data
+// GetAll returns all test metadata with the provided tags, if tags is nil,
+// return all test metadata
 func (tm *Manager) GetAll(tags []string) ([]TestResultSV, error) {
 	retVal := make([]TestResultSV, 0)
 
