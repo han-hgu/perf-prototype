@@ -12,8 +12,8 @@ Returns the metadata portion of all the tests(in-progress and completed), which 
 ## Return format
 An array of objects with the following keys and values:
 
-- **id** - ID of the test. It can be used to query the complete test result.
-- **meta_data** - The [metadata]() describing the test run.  
+- **id** - Test ID. It can be used to query the complete test result
+- **meta_data** - [Metadata](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/terms.md#metadata) describing the test run
 
 ***
 
@@ -167,5 +167,3 @@ An array of objects with the following keys and values:
 			"chart_title": "8.5.26.5-Hotfix.6RC24"
 		}
 	}]
-
-
