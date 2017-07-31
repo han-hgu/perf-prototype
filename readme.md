@@ -1,24 +1,19 @@
 # EIP Performance Test Framework
-The framework is responsible for monitoring test progress, collecting KPIs and
-managing test results.
+The framework is responsible for monitoring test progress, collecting real-time KPIs and managing test results.
 The API is REST API, return format for all endpoints is JSON.
 
-[How To Interact With Logisense Internal Server.](https://github.com/han-hgu/perf-prototype/blob/master/howto.md)
-
-
-
-
-
-
-
+[How To Interact With Logisense Internal Server](https://github.com/han-hgu/perf-prototype/blob/master/howto.md)
 
 ## Endpoints
-### Rating
-- **[<code>GET</code> /rating/tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/GET_tests.md)**
-- **[<code>GET</code> /rating/tests/:id](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/GET_tests_id.md)**
-- **[<code>POST</code> /rating/tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/POST_tests.md)**
+### Querying Test Results
+- **[<code>GET</code> tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/GET_tests.md)**
+- **[<code>GET</code> tests/:id](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/GET_tests_id.md)**
 
-### Billing
+### Posting Tests
+- **[<code>POST</code> tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/POST_tests.md)**
+
+### Drawing Comparison Charts
+- **[<code>GET</code> rating/charts](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/GET_rating_charts.md)**
 
 
 ## Building
@@ -52,8 +47,12 @@ You can cross compile it using
 ### Cache
 - [BigCache](https://github.com/allegro/bigcache)
 
+### Graphing
+- [Google Charts](https://developers.google.com/chart/)
+
 ## TODO
 - Use [Context package](https://golang.org/pkg/context/)
+- Authentication
 
 [OAuth]: http://oauth.net/core/1.0a/
 [Beginner’s Guide]: http://hueniverse.com/oauth/

@@ -137,7 +137,7 @@ func testRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"testID": testID})
+	json.NewEncoder(w).Encode(map[string]string{"id": testID})
 }
 
 // AddV1Routes adds version 1 handlers

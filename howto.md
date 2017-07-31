@@ -1,7 +1,7 @@
 # How To Interact With Logisense Internal Server #
 
 - Logisense performance server is hosted by qa-performance VM and is listening on port 4999.
-- All steps below are to give a brief introduction, for detailed description for each endpoint, refer to [Endpoints](https://github.com/han-hgu/perf-prototype/blob/master/readme.md#Endpoints) section.
+- All steps below are to give a brief introduction, for detailed description for each endpoint, refer to [Endpoints](https://github.com/han-hgu/perf-prototype/blob/master/readme.md#endpoints) section.
 - Testrun information is searchable through tags. For example, run the following request to retrieve all tests with tag "8.5.26.5" and "Rating", only the testID and metadata of the test is returned to give you an idea of what the testrun is about. 
 
 	**Request**
