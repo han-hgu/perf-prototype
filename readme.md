@@ -30,14 +30,7 @@ You can cross compile it using
 - Running the executable starts up a server on port 4999
 
 ## Requirements
-- The system is able to
-- File drop service to generate and create the input files in the designed location
-- Controllable rate for file drop
-- Rates are captured through out the whole process not just an average value
-- Error handling:
-	- Server recovery
-	- Error stats
-	- Persistent storage
+-
 
 ## Design Decisions
 ### Database
@@ -53,6 +46,10 @@ You can cross compile it using
 ## TODO
 - Use [Context package](https://golang.org/pkg/context/)
 - Authentication
+- Controllable rate for file drop
+- Error handling:
+	- Service recovery
+	- Error stats
 
 [OAuth]: http://oauth.net/core/1.0a/
 [Beginner’s Guide]: http://hueniverse.com/oauth/

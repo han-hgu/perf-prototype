@@ -8,7 +8,7 @@ Only in response, the metadata of a testrun includes the following
 - **duration** - Duration of the test if completed
 - **tags** - A list of tags associated with the test, copied from request
 - **comment** - Additional comment for the test, string
-- **collection_interval** - The framework collects the stats every collection interval
+- **collection_interval** - The framework collects the stats every `collection interval`
 - **app_param** - The software/hardware information of the application server, see [Application Server Parameters](#application-server-parameters) for details
 - **db_param** - The software/hardware information of the database server, see [Database Server Parameters](#database-server-parameters) for details
 - **chart_title** - The title of the testrun in comparison charts

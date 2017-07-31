@@ -13,7 +13,7 @@ A JSON object containing the following key/value pairs no matter the test type
 - **id** - Test ID
 - **meta_data** - [Metadata](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/terms.md#metadata) describing the test run  
 - **app_stats** - [Statistics for the application server](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/terms.md#application-server-statistics)
-- **db_stats** - [Statistics for the database server](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/terms.md#application-server-statistics)
+- **db_stats** - [Statistics for the database server](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/terms.md#database-server-statistics)
 
 ### Rating result additional information
 For rating test type, the following information is also returned
@@ -24,8 +24,6 @@ For rating test type, the following information is also returned
 - **files_completed** - The number of rating input files processed so far, integer
 - **rates** - Real-time rates per collection interval, float array
 - **udr\_created\_trend** - The number of UDRs generated up to this point, this JSON array holds the stats for every collection interval up to now
-
-
 
 
 ### Billing result additional information
@@ -41,11 +39,11 @@ For billing test type, the following information is also returned
 ***
 
 ## Errors
-- **400 Bad Request** — Test does not exist
+- **400 Bad Request** - Test does not exist
 
 ***
 ## Example
-### billing
+### Billing
 
 **Request**
 

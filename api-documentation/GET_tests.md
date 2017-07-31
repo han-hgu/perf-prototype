@@ -2,17 +2,21 @@
 
 	GET tests
 
+***
+
 ## Description
-Returns the metadata portion of all the tests(in-progress and completed), which contains every tag specified in the request. If no tag is specified, all test metadata are returned  
+Returns the metadata portion of all the tests(both in-progress and completed), which contains every tag specified in the request. If no tag is specified, all test metadata are returned  
 
 ***
 ## Parameters
 - **tag** - Can be specified multiple times, only test metadata containing every tag specified are returned, case sensitive
 
+***
+
 ## Return format
 An array of objects with the following keys and values:
 
-- **id** - Test ID. It can be used to query the complete test result
+- **id** - Test ID, can be used to query the complete test result
 - **meta_data** - [Metadata](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/terms.md#metadata) describing the test run
 
 ***
