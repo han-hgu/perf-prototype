@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"reflect"
 
 	"github.com/gorilla/mux"
 	"github.com/perf-prototype/perftest"
@@ -44,7 +45,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
+func chartHandler(w http.ResponseWriter, r *http.Request) {
 	qps := r.URL.Query()
 	ids, ok := qps["id"]
 	if !ok {
@@ -52,12 +53,48 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var df struct {
+		TestType           string
+		CollectionInterval string
+		UDRRate            *templateDataFeed
+		AppCPU             *templateDataFeed
+		AppMem             *templateDataFeed
+		DBCPU              *templateDataFeed
+		UDRAbsolute        *templateDataFeedUint64
+		LReads             *templateDataFeedUint64
+		LWrites            *templateDataFeedUint64
+		PReads             *templateDataFeedUint64
+	}
+
 	var trs []perftest.Result
 	var ci string
 	for _, v := range ids {
 		tr, e := Result(v)
+
 		if e != nil {
 			http.Error(w, fmt.Sprintf("Invalid test ID: %s", v), http.StatusBadRequest)
+			return
+		}
+
+		switch tr.(type) {
+		case *perftest.RatingResult:
+			if df.TestType == "" {
+				df.TestType = "rating"
+			} else if df.TestType != "rating" {
+				http.Error(w, fmt.Sprintf("Cannot compare tests with different types"), http.StatusBadRequest)
+				return
+			}
+
+		case *perftest.BillingResult:
+			if df.TestType == "" {
+				df.TestType = "billing"
+			} else if df.TestType != "billing" {
+				http.Error(w, fmt.Sprintf("Cannot compare tests with different types"), http.StatusBadRequest)
+				return
+			}
+
+		default:
+			http.Error(w, fmt.Sprintf("Unknown test type: %v", reflect.TypeOf(tr)), http.StatusBadRequest)
 			return
 		}
 
@@ -70,27 +107,18 @@ func ratingComparisonHandler(w http.ResponseWriter, r *http.Request) {
 		trs = append(trs, tr)
 	}
 
-	var df struct {
-		CollectionInterval string
-		UDRRate            *templateDataFeed
-		AppCPU             *templateDataFeed
-		AppMem             *templateDataFeed
-		DBCPU              *templateDataFeed
-		UDRAbsolute        *templateDataFeedUint64
-		LReads             *templateDataFeedUint64
-		LWrites            *templateDataFeedUint64
-		PReads             *templateDataFeedUint64
-	}
-
 	df.CollectionInterval = ci
-	df.UDRRate, _ = UDRRatesForTemplate(trs)
 	df.AppCPU, _ = AppCPUSamplesForTemplate(trs)
 	df.AppMem, _ = AppMemSamplesForTemplate(trs)
 	df.DBCPU, _ = DBCPUSamplesForTemplate(trs)
-	df.UDRAbsolute, _ = UDRCurrentProcessedForTemplate(trs)
 	df.LReads, _ = DBLogicalReadsForTemplate(trs)
 	df.LWrites, _ = DBLogicalWrites(trs)
 	df.PReads, _ = DBPhysicalReadsForTemplate(trs)
+
+	if df.TestType == "rating" {
+		df.UDRRate, _ = UDRRatesForTemplate(trs)
+		df.UDRAbsolute, _ = UDRCurrentProcessedForTemplate(trs)
+	}
 
 	w.Header().Set("Content-Type", "text/html")
 	if err := template.Must(template.New("comparison.tmpl").ParseFiles("templates/comparison.tmpl")).Execute(w, df); err != nil {
@@ -145,7 +173,7 @@ func AddV1Routes(r *mux.Router) {
 	r.HandleFunc("/tests", metaDataRetriever).Methods("GET")
 	r.HandleFunc("/tests", testRequestHandler).Methods("POST")
 	r.HandleFunc("/tests/{testID}", statsHandler).Methods("GET")
-	r.HandleFunc("/rating/charts", ratingComparisonHandler).Methods("GET")
+	r.HandleFunc("/charts", chartHandler).Methods("GET")
 }
 
 func main() {

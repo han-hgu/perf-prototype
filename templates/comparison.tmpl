@@ -8,8 +8,10 @@
       google.charts.load('current', {'packages':['corechart']});
 
       // Set a callback to run when the Google Visualization API is loaded.
+      {{if eq .TestType "rating"}}
       google.charts.setOnLoadCallback(drawRatingChart);
       google.charts.setOnLoadCallback(drawRatingTotalChart);
+      {{end}}
       google.charts.setOnLoadCallback(drawAppCPUChart);
       google.charts.setOnLoadCallback(drawAppMemChart);
       google.charts.setOnLoadCallback(drawDBCPUChart);
@@ -269,24 +271,24 @@
           chart.draw(data, options);
       }
 
+      {{if eq .TestType "rating"}}
       function drawRatingChart() {
-        {{with .UDRRate}}
+          {{with .UDRRate}}
 
-        // Create the data table.
-        var data = new google.visualization.DataTable();
+          // Create the data table.
+          var data = new google.visualization.DataTable();
 
-        {{range .IDs}}
-        data.addColumn('number', {{.}});
-        {{end}}
+          {{range .IDs}}
+                data.addColumn('number', {{.}});
+          {{end}}
 
-        data.addRows([
-            {{range .Results}}
-            [{{range .}}{{.}},{{end}}],
-            {{end}}
-        ]);
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}]);
 
-        // Set chart options
-        var options = {'title':{{.Title}},
+          // Set chart options
+          var options = {'title':{{.Title}},
                        'width':2000,
                        'height':300,
                        'titleTextStyle': {
@@ -304,32 +306,31 @@
                            'trigger': 'selection',
                        },
                        'legend': {'position': 'center'}};
+          {{end}}
 
-        {{end}}
-
-        // Instantiate and draw our chart, passing in some options.
-        var chart = new google.visualization.LineChart(document.getElementById('chart_div_udr'));
-        chart.draw(data, options);
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_udr'));
+          chart.draw(data, options);
       }
 
       function drawRatingTotalChart() {
-        {{with .UDRAbsolute}}
+          {{with .UDRAbsolute}}
 
-        // Create the data table.
-        var data = new google.visualization.DataTable();
+          // Create the data table.
+          var data = new google.visualization.DataTable();
 
-        {{range .IDs}}
-        data.addColumn('number', {{.}});
-        {{end}}
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
 
-        data.addRows([
-            {{range .Results}}
-            [{{range .}}{{.}},{{end}}],
-            {{end}}
-        ]);
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
 
-        // Set chart options
-        var options = {'title':{{.Title}},
+          // Set chart options
+          var options = {'title':{{.Title}},
                        'width':2000,
                        'height':300,
                        'titleTextStyle': {
@@ -347,19 +348,21 @@
                            'trigger': 'selection',
                        },
                        'legend': {'position': 'center'}};
+          {{end}}
 
-        {{end}}
-
-        // Instantiate and draw our chart, passing in some options.
-        var chart = new google.visualization.LineChart(document.getElementById('chart_div_udr_total'));
-        chart.draw(data, options);
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_udr_total'));
+          chart.draw(data, options);
       }
+      {{end}}
     </script>
   </head>
 
   <body>
+    {{if eq .TestType "rating"}}
     <div id="chart_div_udr"></div>
     <div id="chart_div_udr_total"></div>
+    {{end}}
     <div id="chart_div_app_cpu"></div>
     <div id="chart_div_app_mem"></div>
     <div id="chart_div_db_cpu"></div>
