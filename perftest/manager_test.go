@@ -38,6 +38,10 @@ func (*mockStatsController) TrackKPI(wg *sync.WaitGroup, dbname string, cpu *flo
 	return
 }
 
+func (*mockStatsController) GetEIPOptions(ac *AppConf) error {
+	return nil
+}
+
 func TestCreate(t *testing.T) {
 	testStore.Initialize()
 	m := Create(testStore)

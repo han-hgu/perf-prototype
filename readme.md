@@ -2,7 +2,7 @@
 The framework is responsible for monitoring test progress, collecting real-time KPIs and managing test results.
 The API is REST API, return format for all endpoints is JSON.
 
-[How To Interact With Logisense Internal Server](https://github.com/han-hgu/perf-prototype/blob/master/howto.md)
+[How To Interact With Logisense Internal Server](howto.md)
 
 ## Endpoints
 ### Querying Test Results
@@ -10,10 +10,10 @@ The API is REST API, return format for all endpoints is JSON.
 - **[<code>GET</code> tests/:id](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/GET_tests_id.md)**
 
 ### Posting Tests
-- **[<code>POST</code> tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/POST_tests.md)**
+- **[<code>POST</code> tests](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/POST_tests.md)**
 
 ### Drawing Comparison Charts
-- **[<code>GET</code> rating/charts](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/rating/GET_rating_charts.md)**
+- **[<code>GET</code> rating/charts](https://github.com/han-hgu/perf-prototype/blob/master/api-documentation/GET_rating_charts.md)**
 
 
 ## Building

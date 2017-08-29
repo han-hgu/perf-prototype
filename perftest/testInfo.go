@@ -68,7 +68,7 @@ type ChartConf struct {
 // AppConf for perfmon url
 type AppConf struct {
 	Version       string                 `json:"version" bson:"version"`
-	Options       []string               `json:"EIP_option" bson:"EIP_option"`
+	Options       map[string]string      `json:"EIP_option" bson:"EIP_option"`
 	URL           string                 `json:"perfmon_url" bson:"perfmon_url"`
 	SysInfo       map[string]interface{} `json:"sys_info" bson:"sys_info"`
 	AddtionalInfo map[string]string      `json:"additional_info,omitempty" bson:"additional_info,omitempty"`

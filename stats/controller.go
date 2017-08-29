@@ -77,6 +77,39 @@ func (c *Controller) UpdateBaselineIDs(dbIDTracker *perftest.DBIDTracker) error 
 	return nil
 }
 
+// GetEIPOptions detects the EIP options and populates it in the appConfig in
+// the response
+func (c *Controller) GetEIPOptions(ac *perftest.AppConf) error {
+	var (
+		name  string
+		value string
+	)
+
+	retVal := make(map[string]string)
+
+	rows, err := c.db.Query("select name, value from EngageIPOption")
+	if err != nil {
+		return err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&name, &value)
+		if err != nil {
+			return err
+		}
+		retVal[name] = value
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return err
+	}
+
+	ac.Options = retVal
+	return nil
+}
+
 // getLastVal finds the first set of values from the query, it returns false
 // if it can't get any values
 func (c *Controller) getLastVal(q string, v []interface{}) (bool, error) {

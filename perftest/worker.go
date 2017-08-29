@@ -84,6 +84,11 @@ func createWorker(tm *Manager, t Params) *worker {
 	w.updateAppServerInfo(&(tr.AppConf))
 	w.updateDBServerInfo(t.DBConfig(), &(tr.DBParams))
 
+	// update EIP_option, fetching from db
+	if e := w.sc.GetEIPOptions(&(tr.AppConf)); e != nil {
+		log.Fatalf("ERR: get EngageIP options from db failed: %v", e)
+	}
+
 	// Update db parameters
 	if e := w.sc.UpdateDBParameters(t.DBConfig(), &(tr.DBParams)); e != nil {
 		log.Fatalf("ERR: update db system parameters failed: %v", e)

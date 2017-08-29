@@ -41,7 +41,7 @@ func TestStoreAdd(t *testing.T) {
 	tr.AddPhysicalReads(3)
 	tr.Metadata.AppConf.SysInfo = make(map[string]interface{}, 0)
 	tr.Metadata.DBParams.SysInfo = make(map[string]interface{}, 0)
-	tr.AppConf.Options = make([]string, 0)
+	tr.AppConf.Options = make(map[string]string)
 	tr.ID = bson.NewObjectId()
 	e := s.add(&tr)
 
@@ -85,7 +85,7 @@ func TestStoreGet(t *testing.T) {
 	tr1.AddLogicalReads(1)
 	tr1.AddLogicalWrites(2)
 	tr1.AddPhysicalReads(3)
-	tr1.AppConf.Options = make([]string, 0)
+	tr1.AppConf.Options = make(map[string]string)
 	tr1.ID = bson.NewObjectId()
 
 	tr2 := TestResult{}
@@ -101,7 +101,7 @@ func TestStoreGet(t *testing.T) {
 	tr2.AddLogicalReads(1)
 	tr2.AddLogicalWrites(2)
 	tr2.AddPhysicalReads(3)
-	tr2.AppConf.Options = make([]string, 0)
+	tr2.AppConf.Options = make(map[string]string, 0)
 	tr2.ID = bson.NewObjectId()
 	s.add(&tr1)
 	s.add(&tr2)
@@ -162,7 +162,9 @@ func TestGetTestResultSVByTags(t *testing.T) {
 	rr3 := RatingResult{}
 	rr3.TestResult.Metadata.Keywords = []string{"rating"}
 	rr3.ID = bson.NewObjectId()
-	rr3.AppConf.Options = []string{"someOption1", "someOption2"}
+	rr3.AppConf.Options = make(map[string]string)
+	rr3.AppConf.Options["someOption1"] = "v1"
+	rr3.AppConf.Options["someOption2"] = "v2"
 	rr3.Metadata.AppConf.SysInfo = make(map[string]interface{}, 0)
 	rr3.Metadata.DBParams.SysInfo = make(map[string]interface{}, 0)
 	rr3SV := TestResultSV{}
