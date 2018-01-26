@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"sync"
 
 	"gopkg.in/mgo.v2/bson"
@@ -35,10 +36,14 @@ func Teardown() {
 func Result(testID string) (perftest.Result, error) {
 	// query before any test is started
 	initController()
-	return c.tm.Get(bson.ObjectIdHex(testID))
+	if bson.IsObjectIdHex(testID) {
+		return c.tm.Get(bson.ObjectIdHex(testID))
+	}
+
+	return nil, errors.New("invalid test id")
 }
 
-// MetaData returns all test meta data
+// TestResultSVs returns all test meta data
 func TestResultSVs(tags []string) ([]perftest.TestResultSV, error) {
 	initController()
 
