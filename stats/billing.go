@@ -119,6 +119,6 @@ func (c *Controller) GetBillrunEndTime(wg *sync.WaitGroup, owner string, last ui
 	if wg != nil {
 		defer wg.Done()
 	}
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run for owner ''%v''' order by id desc", last, owner)
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run%%for owner ''%v''' order by id desc", last, owner)
 	c.getLastVal(q, []interface{}{billrunEndTime})
 }
