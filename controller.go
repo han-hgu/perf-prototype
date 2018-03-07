@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"sync"
 
 	"gopkg.in/mgo.v2/bson"
@@ -29,7 +30,9 @@ func initController() {
 
 // Teardown to tear down the controller
 func Teardown() {
+	initController()
 	c.tm.Teardown()
+	log.Println("Server stopped.")
 }
 
 // Result returns the test result based on the test id

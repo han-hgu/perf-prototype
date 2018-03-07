@@ -2,13 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"reflect"
 
 	"github.com/gorilla/mux"
+	"github.com/kardianos/service"
 	"github.com/perf-prototype/perftest"
 )
 
@@ -121,6 +125,8 @@ func chartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
+	// TODO: Don't have to parse the template everytime
+
 	if err := template.Must(template.New("comparison.tmpl").ParseFiles("templates/comparison.tmpl")).Execute(w, df); err != nil {
 		log.Printf("ERR: html template returns error: %v\n", err)
 	}
@@ -176,11 +182,74 @@ func AddV1Routes(r *mux.Router) {
 	r.HandleFunc("/charts", chartHandler).Methods("GET")
 }
 
-func main() {
-	defer Teardown()
+type program struct {
+	LogFD *os.File
+}
+
+func (p *program) Start(s service.Service) error {
+	// Start should not block. Do the actual work async.
+	go p.run()
+	return nil
+}
+
+func (p *program) run() {
+	var logfile = flag.String("log", "perf.log", "the location of the log file")
+	flag.Parse()
+	f, err := os.OpenFile(*logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//set output of logs to f
+	log.SetOutput(f)
+	p.LogFD = f
+
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// For windows service to access the relative file path
+	if err := os.Chdir(dir); err != nil {
+		log.Fatal(err)
+	}
+
 	r := mux.NewRouter().StrictSlash(true)
 
 	// TODO: OPTIONS handler
 	AddV1Routes(r.PathPrefix("/v1").Subrouter())
+	log.Println("Server started.")
 	log.Fatal(http.ListenAndServe(":4999", r))
+}
+
+func (p *program) Stop(s service.Service) error {
+	Teardown()
+	p.LogFD.Close()
+	// Stop should not block. Return with a few seconds.
+	return nil
+}
+
+func main() {
+	sConfig := &service.Config{
+		Name:        "GoPerfFramework",
+		DisplayName: "EIP Performance Framework",
+		Description: "EngageIP performance Framework",
+	}
+	prg := &program{}
+	s, err := service.New(prg, sConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	logger, err := s.Logger(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer prg.Stop(s)
+	err = s.Run()
+
+	if err != nil {
+		logger.Error(err)
+	}
 }
