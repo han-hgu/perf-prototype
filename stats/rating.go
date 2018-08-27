@@ -43,8 +43,10 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	go c.getUDRExceptionCount(&wg, dbIDTracker.UDRExceptionLastProcessed, dbIDTracker.UDRExceptionCurrent, &udrExceptionC)
 
 	// Number of rating files processed
-	wg.Add(1)
-	go c.numOfFileProcessed(&wg, rp.FilenamePrefix, dbIDTracker.EventLogLastProcessed, dbIDTracker.EventLogCurrent, &numberOfFilesProcessed)
+	if rp.NumOfFiles != 0 {
+		wg.Add(1)
+		go c.numOfFileProcessed(&wg, rp.FilenamePrefix, dbIDTracker.EventLogLastProcessed, dbIDTracker.EventLogCurrent, &numberOfFilesProcessed)
+	}
 
 	wg.Wait()
 
@@ -55,7 +57,8 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	rr.UDRProcessedTrend = append(rr.UDRProcessedTrend, rr.UDRProcessed)
 	rr.UDRExceptionProcessed += udrExceptionC
 	rr.FilesCompleted += numberOfFilesProcessed
-	if rr.FilesCompleted == rp.NumOfFiles {
+	if (rp.NumOfFiles != 0 && rr.FilesCompleted == rp.NumOfFiles) ||
+		(rp.NumOfUDRRecords != 0 && rp.NumOfUDRRecords <= rr.UDRProcessed) {
 		rr.Done = true
 		duration := start.Sub(rr.StartTime)
 		rr.Duration = duration.String()

@@ -146,6 +146,7 @@ type RatingParams struct {
 	AmtFieldIndex       int      `json:"amount_field_index"`
 	TimpstampFieldIndex int      `json:"timestamp_field_index"`
 	NumOfFiles          uint32   `json:"number_of_files"`
+	NumOfUDRRecords     uint64   `json:"number_of_UDR_Records"`
 	NumRecordsPerFile   int      `json:"number_of_records_per_file"`
 	RawFields           []string `json:"raw_fields"`
 	UseExistingFile     bool     `json:"use_existing_file"`
