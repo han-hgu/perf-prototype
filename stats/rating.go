@@ -31,12 +31,19 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 		udrC                   uint64
 		udrExceptionC          uint64
 		numberOfFilesProcessed uint32
+		udrTotal               uint64
 	)
 
 	var wg sync.WaitGroup
 	// UDRs
 	wg.Add(1)
 	go c.getUDRCount(&wg, dbIDTracker.UDRLastProcessed, dbIDTracker.UDRCurrent, &udrC)
+
+	// This is only for debug, this number is temporarily used for ending the test since the UDR count from segments seems inaccurate
+	if rp.NumOfUDRRecords != 0 {
+		wg.Add(1)
+		go c.getUDRCount(&wg, dbIDTracker.UDRStarted, dbIDTracker.UDRCurrent, &udrTotal)
+	}
 
 	// UDRExceptions
 	wg.Add(1)
@@ -50,7 +57,11 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 
 	wg.Wait()
 
-	rr.UDRProcessed += udrC
+	if udrC != udrTotal-rr.UDRProcessed {
+		log.Printf("DEBUG: udrC reported is %v, but udrTotal: %v, UDRProcessed: %v", udrC, udrTotal, rr.UDRProcessed)
+	}
+	UDRPreviousProcessed := rr.UDRProcessed
+	rr.UDRProcessed = udrTotal
 	// Attention: UDRProcessed is a field for charting purpose, in order to
 	// make the interface unified, cast uint64 to float32 assuming the cast will
 	// always be successful
@@ -58,7 +69,8 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	rr.UDRExceptionProcessed += udrExceptionC
 	rr.FilesCompleted += numberOfFilesProcessed
 	if (rp.NumOfFiles != 0 && rr.FilesCompleted == rp.NumOfFiles) ||
-		(rp.NumOfUDRRecords != 0 && rp.NumOfUDRRecords <= rr.UDRProcessed) {
+		(rp.NumOfUDRRecords != 0 && rp.NumOfUDRRecords <= udrTotal) {
+		log.Printf("DEBUG: rp.NumOfUDRRecords: %v, udrTotal: %v\n", rp.NumOfUDRRecords, udrTotal)
 		rr.Done = true
 		duration := start.Sub(rr.StartTime)
 		rr.Duration = duration.String()
@@ -66,7 +78,7 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	}
 
 	// calculate rates by counting
-	currRate := float32(float64(udrC) / float64(start.Sub(dbIDTracker.TimePrevious).Seconds()))
+	currRate := float32(float64(rr.UDRProcessed-UDRPreviousProcessed) / float64(start.Sub(dbIDTracker.TimePrevious).Seconds()))
 	if rr.MinRate == 0 || currRate < rr.MinRate {
 		rr.MinRate = currRate
 	}
@@ -124,6 +136,8 @@ func (c *Controller) getUDRCount(wg *sync.WaitGroup, last, current uint64, resul
 	}
 
 	q := fmt.Sprintf("select count(*) from udr where id > %v and id <= %v", last, current)
+	log.Printf("DEBUG: query for UDR total: %v\n", q)
+
 	c.getLastVal(q, []interface{}{result})
 }
 

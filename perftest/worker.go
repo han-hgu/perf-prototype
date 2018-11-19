@@ -114,7 +114,6 @@ func createWorker(tm *Manager, t Params) *worker {
 
 		rr := new(BillingResult)
 		rr.OwnerName = t.(*BillingParams).OwnerName
-		rr.UserPackageBillRate = make([]uint32, 0)
 		rr.TestResult = tr
 		tinfo.Result = rr
 		rr.Type = "billing"

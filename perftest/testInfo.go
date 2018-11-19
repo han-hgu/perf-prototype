@@ -146,7 +146,7 @@ type RatingParams struct {
 	AmtFieldIndex       int      `json:"amount_field_index"`
 	TimpstampFieldIndex int      `json:"timestamp_field_index"`
 	NumOfFiles          uint32   `json:"number_of_files"`
-	NumOfUDRRecords     uint64   `json:"number_of_UDR_Records"`
+	NumOfUDRRecords     uint64   `json:"number_of_records"`
 	NumRecordsPerFile   int      `json:"number_of_records_per_file"`
 	RawFields           []string `json:"raw_fields"`
 	UseExistingFile     bool     `json:"use_existing_file"`
@@ -426,18 +426,24 @@ type RatingResult struct {
 
 // BillingResult stores billing stats
 type BillingResult struct {
-	TestResult               `bson:",inline"`
-	OwnerName                string    `json:"owner_name" bson:"owner_name"`
-	BillingDuration          string    `json:"billing_duration,omitempty" bson:"billing_duration"`
-	InvoiceRenderDuration    string    `json:"invoice_render_duration,omitempty" bson:"invoice_render_duration"`
-	UserPackageBilled        uint64    `json:"user_package_billed,omitempty" bson:"user_package_billed"`
-	UserPackageBillRate      []uint32  `json:"user_package_bill_rate,omitempty" bson:"user_package_bill_rate"`
-	InvoiceRenderStartTime   time.Time `json:"-"`
-	InvoiceRenderEndTime     time.Time `json:"-"`
-	InvoiceRenderEndTimeOnce sync.Once `json:"-" bson:"-"`
-	BillingStartTime         time.Time `json:"-"`
-	BillingEndTime           time.Time `json:"-"`
-	BillingEndTimeOnce       sync.Once `json:"-" bson:"-"`
-	BillrunEndTime           time.Time `json:"-"`
-	BillrunEndOnce           sync.Once `json:"-" bson:"-"`
+	TestResult                 `bson:",inline"`
+	OwnerName                  string    `json:"owner_name" bson:"owner_name"`
+	BillingDuration            string    `json:"billing_duration,omitempty" bson:"billing_duration"`
+	InvoiceRenderDuration      string    `json:"invoice_render_duration,omitempty" bson:"invoice_render_duration"`
+	InvoiceRenderStartTime     time.Time `json:"-"`
+	InvoiceRenderEndTime       time.Time `json:"-"`
+	InvoiceRenderEndTimeOnce   sync.Once `json:"-" bson:"-"`
+	BillingStartTime           time.Time `json:"-"`
+	BillingEndTime             time.Time `json:"-"`
+	BillingEndTimeOnce         sync.Once `json:"-" bson:"-"`
+	BillrunEndTime             time.Time `json:"-"`
+	BillrunEndOnce             sync.Once `json:"-" bson:"-"`
+	UserPackagesBilled         []uint64  `json:"user_packages_billed,omitempty" bson:"user_packages_billed"`
+	UserServicesBilled         []uint64  `json:"user_services_billed,omitempty" bson:"user_services_billed"`
+	UsersBilled                []uint64  `json:"users_billed,omitempty" bson:"users_billed"`
+	UsageInvoicersBilled       []uint64  `json:"usage_invoicers_billed,omitempty" bson:"usage_invoicers_billed"`
+	InvoicesClosed             []uint64  `json:"invoices_closed,omitempty" bson:"invoices_closed"`
+	UsageTranscationsGenerated []uint64  `json:"usage_transactions_generated,omitempty" bson:"usage_transactions_generated"`
+	MRCTransactionsGenerated   []uint64  `json:"mrc_transactions_generated,omitempty" bson:"mrc_transactions_generated"`
+	BillUDRActionCompleted     []uint64  `json:"bill_udr_actions_completed" bson:"bill_udr_actions_completed"`
 }

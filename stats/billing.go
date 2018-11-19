@@ -41,6 +41,10 @@ func (c *Controller) UpdateBillingResult(ti *perftest.TestInfo, dbIDTracker *per
 		go c.GetBillrunEndTime(&wg, tp.OwnerName, dbIDTracker.EventLogLastProcessed, &(tr.BillrunEndTime))
 	}
 
+	// BillUDR completed count in eventlog
+	wg.Add(1)
+	go c.NumOfBillUDRActionsCompleted(&wg, dbIDTracker.EventlogStarted, tr.BillUDRActionCompleted)
+
 	wg.Wait()
 
 	if !tr.BillingEndTime.IsZero() {
@@ -65,7 +69,7 @@ func (c *Controller) UpdateBillingResult(ti *perftest.TestInfo, dbIDTracker *per
 
 	if !tr.BillrunEndTime.IsZero() {
 		if tr.BillingStartTime.IsZero() {
-			panic("ERR: Invo end time captured but not start time")
+			panic("ERR: Invoice end time captured but not start time")
 		}
 
 		tr.BillrunEndOnce.Do(func() {
@@ -121,4 +125,15 @@ func (c *Controller) GetBillrunEndTime(wg *sync.WaitGroup, owner string, last ui
 	}
 	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run%%for owner ''%v''' order by id desc", last, owner)
 	c.getLastVal(q, []interface{}{billrunEndTime})
+}
+
+// NumOfBillUDRActionsCompleted gets the number of BillUDR actions with a "Finished Usage Billing for ..." keyword
+func (c *Controller) NumOfBillUDRActionsCompleted(wg *sync.WaitGroup, last uint64, result []uint64) {
+	if wg != nil {
+		defer wg.Done()
+	}
+	var tp uint64
+	q := fmt.Sprintf("select count(*) from eventlog where id > %v and action = 'BillUDR' and Result like 'Finished Usage Billing for User%%'", last)
+	c.getLastVal(q, []interface{}{tp})
+	result = append(result, tp)
 }
