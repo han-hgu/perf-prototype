@@ -2,7 +2,6 @@ package perftest
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -198,7 +197,7 @@ func (w *worker) TrackAppServerKPI(wg *sync.WaitGroup, cpu *float32, mem *float3
 	rsp, e := w.appStatsC.Get(w.ti.Params.AppConfig().URL + "/stats")
 
 	if e != nil {
-		fmt.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
+		log.Printf("WARNING: failed to get app server stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
 	} else {
 		defer rsp.Body.Close()
 		json.NewDecoder(rsp.Body).Decode(&pfstats)
@@ -215,7 +214,7 @@ func (w *worker) updateAppServerInfo(ac *AppConf) {
 	w.appStatsC.Timeout = ot
 
 	if e != nil {
-		fmt.Printf("WARNING: failed to get app server info from %v, error: %v\n", ac.URL+"/specs", e)
+		log.Printf("WARNING: failed to get app server info from %v, error: %v\n", ac.URL+"/specs", e)
 	} else {
 		defer rsp.Body.Close()
 		json.NewDecoder(rsp.Body).Decode(&(ac.SysInfo))
@@ -228,7 +227,7 @@ func (w *worker) updateDBServerInfo(dbc *DBConf, dbp *DBParams) {
 	rsp, e := w.appStatsC.Get(dbc.URL + "/specs")
 	w.appStatsC.Timeout = ot
 	if e != nil {
-		fmt.Printf("WARNING: failed to get database server info from %v, error: %v\n", dbc.URL+"/specs", e)
+		log.Printf("WARNING: failed to get database server info from %v, error: %v\n", dbc.URL+"/specs", e)
 	} else {
 		defer rsp.Body.Close()
 		json.NewDecoder(rsp.Body).Decode(&(dbp.SysInfo))
@@ -246,7 +245,7 @@ func (w *worker) TrackDBSysCPU(wg *sync.WaitGroup, cpu *float32) {
 	rsp, e := w.appStatsC.Get(w.ti.Params.DBConfig().URL + "/stats")
 
 	if e != nil {
-		fmt.Printf("WARNING: failed to get database stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
+		log.Printf("WARNING: failed to get database stats from %v, error: %v\n", w.ti.Params.AppConfig().URL, e)
 	} else {
 		defer rsp.Body.Close()
 		json.NewDecoder(rsp.Body).Decode(&pfstats)

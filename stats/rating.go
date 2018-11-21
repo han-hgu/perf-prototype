@@ -62,6 +62,7 @@ func (c *Controller) UpdateRatingResult(ti *perftest.TestInfo, dbIDTracker *perf
 	}
 	UDRPreviousProcessed := rr.UDRProcessed
 	rr.UDRProcessed = udrTotal
+	log.Printf("DEBUG: rr.UDRProcessed: %v", rr.UDRProcessed)
 	// Attention: UDRProcessed is a field for charting purpose, in order to
 	// make the interface unified, cast uint64 to float32 assuming the cast will
 	// always be successful

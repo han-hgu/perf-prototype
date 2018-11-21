@@ -438,12 +438,10 @@ type BillingResult struct {
 	BillingEndTimeOnce         sync.Once `json:"-" bson:"-"`
 	BillrunEndTime             time.Time `json:"-"`
 	BillrunEndOnce             sync.Once `json:"-" bson:"-"`
-	UserPackagesBilled         []uint64  `json:"user_packages_billed,omitempty" bson:"user_packages_billed"`
-	UserServicesBilled         []uint64  `json:"user_services_billed,omitempty" bson:"user_services_billed"`
-	UsersBilled                []uint64  `json:"users_billed,omitempty" bson:"users_billed"`
-	UsageInvoicersBilled       []uint64  `json:"usage_invoicers_billed,omitempty" bson:"usage_invoicers_billed"`
+	UsageBillingDuration       string    `json:"usage_billing_duration" bson:"usage_billing_duration"`
+	MRCBillingDuration         string    `json:"mrc_billing_duration" bson:"mrc_billing_duration"`
 	InvoicesClosed             []uint64  `json:"invoices_closed,omitempty" bson:"invoices_closed"`
-	UsageTranscationsGenerated []uint64  `json:"usage_transactions_generated,omitempty" bson:"usage_transactions_generated"`
+	UsageTransactionsGenerated []uint64  `json:"usage_transactions_generated,omitempty" bson:"usage_transactions_generated"`
 	MRCTransactionsGenerated   []uint64  `json:"mrc_transactions_generated,omitempty" bson:"mrc_transactions_generated"`
-	BillUDRActionCompleted     []uint64  `json:"bill_udr_actions_completed" bson:"bill_udr_actions_completed"`
+	BillUDRActionCompleted     []uint64  `json:"bill_udr_actions_completed,omitempty" bson:"bill_udr_actions_completed"`
 }
