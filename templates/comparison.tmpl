@@ -5,12 +5,20 @@
     <script type="text/javascript">
 
       // Load the Visualization API and the corechart package.
-      google.charts.load('current', {'packages':['corechart']});
+      google.charts.load('current', {'packages':['corechart', 'bar']});
 
       // Set a callback to run when the Google Visualization API is loaded.
       {{if eq .TestType "rating"}}
       google.charts.setOnLoadCallback(drawRatingChart);
       google.charts.setOnLoadCallback(drawRatingTotalChart);
+      {{end}}
+      {{if eq .TestType "billing"}}
+      google.charts.setOnLoadCallback(drawInvoicesClosedChart);
+      google.charts.setOnLoadCallback(drawUsageTransactionsGeneratedChart);
+      google.charts.setOnLoadCallback(drawMRCTransactionsGeneratedChart);
+      google.charts.setOnLoadCallback(drawBillUDRActionsCompletedChart);
+      google.charts.setOnLoadCallback(drawBillingActionDurationBarChart);
+      google.charts.setOnLoadCallback(drawBillingActionItemCountBarChart);
       {{end}}
       google.charts.setOnLoadCallback(drawAppCPUChart);
       google.charts.setOnLoadCallback(drawAppMemChart);
@@ -50,7 +58,7 @@
     				     },
     					 'crosshair': {
     			             'color': '#000',
-                             'trigger': 'selection',
+                             'trigger': 'selection'
                          },
     					 'legend': {'position': 'center'}};
 
@@ -92,7 +100,7 @@
     				     },
     					 'crosshair': {
     			             'color': '#000',
-                             'trigger': 'selection',
+                             'trigger': 'selection'
                          },
     					 'legend': {'position': 'center'}};
 
@@ -134,7 +142,7 @@
     				     },
     					 'crosshair': {
     			             'color': '#000',
-                             'trigger': 'selection',
+                             'trigger': 'selection'
                          },
     					 'legend': {'position': 'center'}};
 
@@ -176,7 +184,7 @@
     				     },
     					 'crosshair': {
     			             'color': '#000',
-                             'trigger': 'selection',
+                             'trigger': 'selection'
                          },
     					 'legend': {'position': 'center'}};
 
@@ -218,7 +226,7 @@
     				     },
     					 'crosshair': {
     			             'color': '#000',
-                             'trigger': 'selection',
+                             'trigger': 'selection'
                          },
     					 'legend': {'position': 'center'}};
 
@@ -260,7 +268,7 @@
     				     },
     					 'crosshair': {
     			             'color': '#000',
-                             'trigger': 'selection',
+                             'trigger': 'selection'
                          },
     					 'legend': {'position': 'center'}};
 
@@ -303,7 +311,7 @@
                        },
                        'crosshair': {
                            'color': '#000',
-                           'trigger': 'selection',
+                           'trigger': 'selection'
                        },
                        'legend': {'position': 'center'}};
           {{end}}
@@ -345,7 +353,7 @@
                        },
                        'crosshair': {
                            'color': '#000',
-                           'trigger': 'selection',
+                           'trigger': 'selection'
                        },
                        'legend': {'position': 'center'}};
           {{end}}
@@ -353,6 +361,241 @@
           // Instantiate and draw our chart, passing in some options.
           var chart = new google.visualization.LineChart(document.getElementById('chart_div_udr_total'));
           chart.draw(data, options);
+      }
+      {{end}}
+      {{if eq .TestType "billing"}}
+      function drawInvoicesClosedChart() {
+          {{with .InvoicesClosed}}
+
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                       'width':2000,
+                       'height':300,
+                       'titleTextStyle': {
+                           'color': '#0020C2',
+                           'fontSize': 20,
+                           'bold': true},
+                       'hAxis': {
+                           'title': 'Collection Intervals ({{$.CollectionInterval}})'
+                       },
+                       'vAxis': {
+                           'title': 'Invoices Closed'
+                       },
+                       'crosshair': {
+                           'color': '#000',
+                           'trigger': 'selection'
+                       },
+                       'legend': {'position': 'center'}};
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_invoices_closed'));
+          chart.draw(data, options);
+      }
+
+      function drawUsageTransactionsGeneratedChart() {
+          {{with .UsageTransactionsGenerated}}
+
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                       'width':2000,
+                       'height':300,
+                       'titleTextStyle': {
+                           'color': '#0020C2',
+                           'fontSize': 20,
+                           'bold': true},
+                       'hAxis': {
+                           'title': 'Collection Intervals ({{$.CollectionInterval}})'
+                       },
+                       'vAxis': {
+                           'title': 'Usage Transactions Generated'
+                       },
+                       'crosshair': {
+                           'color': '#000',
+                           'trigger': 'selection'
+                       },
+                       'legend': {'position': 'center'}};
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_usage_transactions_generated'));
+          chart.draw(data, options);
+      }
+
+      function drawMRCTransactionsGeneratedChart() {
+          {{with .MRCTransactionsGenerated}}
+
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                       'width':2000,
+                       'height':300,
+                       'titleTextStyle': {
+                           'color': '#0020C2',
+                           'fontSize': 20,
+                           'bold': true},
+                       'hAxis': {
+                           'title': 'Collection Intervals ({{$.CollectionInterval}})'
+                       },
+                       'vAxis': {
+                           'title': 'MRC Transactions Generated'
+                       },
+                       'crosshair': {
+                           'color': '#000',
+                           'trigger': 'selection'
+                       },
+                       'legend': {'position': 'center'}};
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_mrc_transactions_generated'));
+          chart.draw(data, options);
+      }
+
+      function drawBillUDRActionsCompletedChart() {
+          {{with .BillUDRActionCompleted}}
+
+          // Create the data table.
+          var data = new google.visualization.DataTable();
+
+          {{range .IDs}}
+          data.addColumn('number', {{.}});
+          {{end}}
+
+          data.addRows([
+              {{range .Results}}
+              [{{range .}}{{.}},{{end}}],
+              {{end}}
+          ]);
+
+          // Set chart options
+          var options = {'title':{{.Title}},
+                       'width':2000,
+                       'height':300,
+                       'titleTextStyle': {
+                           'color': '#0020C2',
+                           'fontSize': 20,
+                           'bold': true},
+                       'hAxis': {
+                           'title': 'Collection Intervals ({{$.CollectionInterval}})'
+                       },
+                       'vAxis': {
+                           'title': 'BillUDR Actions Completed'
+                       },
+                       'crosshair': {
+                           'color': '#000',
+                           'trigger': 'selection'
+                       },
+                       'legend': {'position': 'center'}};
+          {{end}}
+
+          // Instantiate and draw our chart, passing in some options.
+          var chart = new google.visualization.LineChart(document.getElementById('chart_div_bill_udr_actions_completed'));
+          chart.draw(data, options);
+      }
+
+      function drawBillingActionDurationBarChart() {
+        {{with .BillingActionDurationChartData}}
+        var data = new google.visualization.arrayToDataTable({{.}});
+
+        var options = {
+          'width':1000,
+          'height':300,
+          'titleTextStyle': {
+            'color': '#0020C2',
+            'fontSize': 20,
+            'bold': true },
+          'chart': {
+            'title': 'Billing Action Duration'
+          },
+          'hAxis': {
+            'title': 'Billing Action'
+          },
+          'vAxis': {
+            'format': 'decimal',
+            'title': 'Total Duration (sec)'
+          },
+          'legend': {'position': 'center'},
+          'crosshair': {
+            'color': '#000',
+            'trigger': 'selection',
+          }
+        };
+        {{end}}
+
+        var chart = new google.charts.Bar(document.getElementById('chart_div_billing_action_duration'));
+        chart.draw(data, google.charts.Bar.convertOptions(options));
+      }
+
+      function drawBillingActionItemCountBarChart() {
+        {{with .BillingActionItemCountChartData}}
+        var data = new google.visualization.arrayToDataTable({{.}});
+
+        var options = {
+          'width':1000,
+          'height':300,
+          'titleTextStyle': {
+            'color': '#0020C2',
+            'fontSize': 20,
+            'bold': true },
+          'chart': {
+            'title': 'Billing Action Item Count'
+          },
+          'hAxis': {
+            'title': 'Billing Action'
+          },
+          'vAxis': {
+            'format': 'decimal',
+            'title': 'Total Count'
+          },
+          'legend': {'position': 'center'},
+          'crosshair': {
+            'color': '#000',
+            'trigger': 'selection',
+          }
+        };
+        {{end}}
+
+        var chart = new google.charts.Bar(document.getElementById('chart_div_billing_action_item_count'));
+        chart.draw(data, google.charts.Bar.convertOptions(options));
       }
       {{end}}
     </script>
@@ -363,11 +606,21 @@
     <div id="chart_div_udr"></div>
     <div id="chart_div_udr_total"></div>
     {{end}}
+    {{if eq .TestType "billing"}}
+    <div id="chart_div_invoices_closed"></div>
+    <div id="chart_div_usage_transactions_generated"></div>
+    <div id="chart_div_mrc_transactions_generated"></div>
+    <div id="chart_div_bill_udr_actions_completed"></div>
+    {{end}}
     <div id="chart_div_app_cpu"></div>
     <div id="chart_div_app_mem"></div>
     <div id="chart_div_db_cpu"></div>
     <div id="chart_div_db_lreads"></div>
     <div id="chart_div_db_lwrites"></div>
     <div id="chart_div_db_preads"></div>
+    {{if eq .TestType "billing"}}
+    <div id="chart_div_billing_action_duration" style="padding-left: 9.5%"></div>
+    <div id="chart_div_billing_action_item_count" style="padding-left: 9.5%"></div>
+    {{end}}
   </body>
 </html>

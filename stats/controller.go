@@ -65,6 +65,8 @@ func (c *Controller) UpdateBaselineIDs(dbIDTracker *perftest.DBIDTracker) error 
 	dbIDTracker.EventlogStarted = c.getLastEventLogID()
 	dbIDTracker.UDRStarted = c.getLastUdrID()
 	dbIDTracker.UDRExceptionStarted = c.getLastUdrExceptionID()
+	dbIDTracker.StatementDetailsStarted = c.getLastStatementDetailsID()
+	dbIDTracker.InvoiceStarted = c.getLastInvoiceID()
 	dbIDTracker.TimePrevious = time.Now()
 	// Don't call getLast...() again, logs are advancing at the same time
 	dbIDTracker.EventLogLastProcessed = dbIDTracker.EventlogStarted
@@ -131,6 +133,8 @@ func (c *Controller) getLastVal(q string, v []interface{}) (bool, error) {
 		return false, err
 	}
 
+	var refUsingQueryRow uint64
+	c.db.QueryRow(q).Scan(&refUsingQueryRow)
 	return true, nil
 }
 

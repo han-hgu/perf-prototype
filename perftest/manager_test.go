@@ -42,6 +42,14 @@ func (*mockStatsController) GetEIPOptions(ac *AppConf) error {
 	return nil
 }
 
+func (*mockStatsController) SnapshotIndexUsageStats(table string) error {
+	return nil
+}
+
+func (*mockStatsController) IndexUsageStatsComparison(tableBefore, tableAfter string) (map[string]map[string]interface{}, error) {
+	return nil, nil
+}
+
 func TestCreate(t *testing.T) {
 	testStore.Initialize()
 	m := Create(testStore)

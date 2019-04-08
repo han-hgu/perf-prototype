@@ -17,6 +17,7 @@ type Params interface {
 	DBConfig() *DBConf
 	AppConfig() *AppConf
 	ChartTitle() string
+	IndexUsageStatsTables() *IndexUsageStatsTableNames
 }
 
 // Result interface to abstract out results
@@ -34,6 +35,7 @@ type Result interface {
 	CollectionInterval() string
 	ChartTitle() string
 	MetaData() Metadata
+	GetIndexUsageStats() *map[string]map[string]interface{}
 }
 
 // TestInfo stores all the test related information
@@ -76,14 +78,19 @@ type AppConf struct {
 
 // TestParams to hold common test parameters for all test types
 type TestParams struct {
-	ID           bson.ObjectId `json:"-"`
-	DBConf       DBConf        `json:"db_config"`
-	AppConf      AppConf       `json:"app_config"`
-	ChartConf    ChartConf     `json:"chart_config"`
-	Cmt          string        `json:"comment"`
-	Kwords       []string      `json:"tags"`
-	CInterval    string        `json:"collection_interval"`
-	DbController iController   `json:"-"`
+	ID                    bson.ObjectId             `json:"-"`
+	DBConf                DBConf                    `json:"db_config"`
+	AppConf               AppConf                   `json:"app_config"`
+	ChartConf             ChartConf                 `json:"chart_config"`
+	Cmt                   string                    `json:"comment"`
+	Kwords                []string                  `json:"tags"`
+	CInterval             string                    `json:"collection_interval"`
+	DbController          iController               `json:"-"`
+	IndexUsageStatsTNames IndexUsageStatsTableNames `json:"-"`
+}
+
+func (tp *TestParams) IndexUsageStatsTables() *IndexUsageStatsTableNames {
+	return &(tp.IndexUsageStatsTNames)
 }
 
 // Comment returns the Comment field
@@ -138,6 +145,8 @@ type DBIDTracker struct {
 	UDRExceptionCurrent       uint64
 	UDRExceptionStarted       uint64
 	TimePrevious              time.Time
+	StatementDetailsStarted   uint64
+	InvoiceStarted            uint64
 }
 
 // RatingParams holds rating test parameters
@@ -191,6 +200,12 @@ type DBStats struct {
 	PReads       []uint64 `json:"physical_reads,omitempty"`
 }
 
+// IndexUsageStats holds the index usage for the test
+type IndexUsageStatsTableNames struct {
+	TableBefore string `json:"-"`
+	TableAfter  string `json:"-"`
+}
+
 // Metadata to store the metadata for the test, this is to make the search and
 // display more user friendly
 type Metadata struct {
@@ -216,10 +231,11 @@ type TestResultSV struct {
 
 // TestResult to store generic results
 type TestResult struct {
-	ID       bson.ObjectId `json:"id" bson:"_id"`
-	Metadata `json:"meta_data" bson:"meta_data"`
-	AppStats GenericStats `json:"app_stats" bson:"app_stats"`
-	DBStats  DBStats      `json:"db_stats" bson:"db_stats"`
+	ID              bson.ObjectId `json:"id" bson:"_id"`
+	Metadata        `json:"meta_data" bson:"meta_data"`
+	AppStats        GenericStats                      `json:"app_stats" bson:"app_stats"`
+	DBStats         DBStats                           `json:"db_stats" bson:"db_stats"`
+	IndexUsageStats map[string]map[string]interface{} `json:"index_usage_stats" bson:"index_usage_stats"`
 }
 
 // TestID to get the test ID
@@ -320,6 +336,11 @@ func (tr *TestResult) MetaData() Metadata {
 	return tr.Metadata
 }
 
+// GetIndexUsageStats returns info about index usage stats tracking
+func (tr *TestResult) GetIndexUsageStats() *map[string]map[string]interface{} {
+	return &(tr.IndexUsageStats)
+}
+
 // FetchAppServerCPUStats fetches app server CPU stats
 func FetchAppServerCPUStats(r Result) []float32 {
 	return r.AppServerStats().CPU
@@ -371,6 +392,42 @@ func FetchUDRProcessedTrend(r Result) []uint64 {
 		panic("ERR: Fetch rates from a non-rating result")
 	}
 	return rr.UDRProcessedTrend
+}
+
+// FetchInvoicesClosed fetches the invoices closed
+func FetchInvoicesClosed(r Result) []uint64 {
+	br, ok := r.(*BillingResult)
+	if !ok {
+		panic("ERR: Fetch invoices closed from a non-billing result")
+	}
+	return br.InvoicesClosed
+}
+
+// FetchUsageTransactionsGenerated fetches the usage transactions generated
+func FetchUsageTransactionsGenerated(r Result) []uint64 {
+	br, ok := r.(*BillingResult)
+	if !ok {
+		panic("ERR: Fetch number of usage transactions from a non-billing result")
+	}
+	return br.UsageTransactionsGenerated
+}
+
+// FetchMRCTransactionsGenerated fetches the MRC transactions generated
+func FetchMRCTransactionsGenerated(r Result) []uint64 {
+	br, ok := r.(*BillingResult)
+	if !ok {
+		panic("ERR: Fetch number of MRC transactions from a non-billing result")
+	}
+	return br.MRCTransactionsGenerated
+}
+
+// FetchBillUDRActionCompleted fetches the MRC transactions generated
+func FetchBillUDRActionCompleted(r Result) []uint64 {
+	br, ok := r.(*BillingResult)
+	if !ok {
+		panic("ERR: Fetch number of Bill UDR actions from a non-billing result")
+	}
+	return br.BillUDRActionCompleted
 }
 
 // AppServerStats returns app server stats
@@ -427,21 +484,22 @@ type RatingResult struct {
 // BillingResult stores billing stats
 type BillingResult struct {
 	TestResult                 `bson:",inline"`
-	OwnerName                  string    `json:"owner_name" bson:"owner_name"`
-	BillingDuration            string    `json:"billing_duration,omitempty" bson:"billing_duration"`
-	InvoiceRenderDuration      string    `json:"invoice_render_duration,omitempty" bson:"invoice_render_duration"`
-	InvoiceRenderStartTime     time.Time `json:"-"`
-	InvoiceRenderEndTime       time.Time `json:"-"`
-	InvoiceRenderEndTimeOnce   sync.Once `json:"-" bson:"-"`
-	BillingStartTime           time.Time `json:"-"`
-	BillingEndTime             time.Time `json:"-"`
-	BillingEndTimeOnce         sync.Once `json:"-" bson:"-"`
-	BillrunEndTime             time.Time `json:"-"`
-	BillrunEndOnce             sync.Once `json:"-" bson:"-"`
-	UsageBillingDuration       string    `json:"usage_billing_duration" bson:"usage_billing_duration"`
-	MRCBillingDuration         string    `json:"mrc_billing_duration" bson:"mrc_billing_duration"`
-	InvoicesClosed             []uint64  `json:"invoices_closed,omitempty" bson:"invoices_closed"`
-	UsageTransactionsGenerated []uint64  `json:"usage_transactions_generated,omitempty" bson:"usage_transactions_generated"`
-	MRCTransactionsGenerated   []uint64  `json:"mrc_transactions_generated,omitempty" bson:"mrc_transactions_generated"`
-	BillUDRActionCompleted     []uint64  `json:"bill_udr_actions_completed,omitempty" bson:"bill_udr_actions_completed"`
+	OwnerName                  string                            `json:"owner_name" bson:"owner_name"`
+	BillingDuration            string                            `json:"billing_duration,omitempty" bson:"billing_duration"`
+	InvoiceRenderDuration      string                            `json:"invoice_render_duration,omitempty" bson:"invoice_render_duration"`
+	InvoiceRenderStartTime     time.Time                         `json:"-"`
+	InvoiceRenderEndTime       time.Time                         `json:"-"`
+	InvoiceRenderEndTimeOnce   sync.Once                         `json:"-" bson:"-"`
+	BillingStartTime           time.Time                         `json:"-"`
+	BillingEndTime             time.Time                         `json:"-"`
+	BillingEndTimeOnce         sync.Once                         `json:"-" bson:"-"`
+	BillrunEndTime             time.Time                         `json:"-"`
+	BillrunEndOnce             sync.Once                         `json:"-" bson:"-"`
+	UsageBillingDuration       string                            `json:"usage_billing_duration" bson:"usage_billing_duration"`
+	MRCBillingDuration         string                            `json:"mrc_billing_duration" bson:"mrc_billing_duration"`
+	InvoicesClosed             []uint64                          `json:"invoices_closed,omitempty" bson:"invoices_closed"`
+	UsageTransactionsGenerated []uint64                          `json:"usage_transactions_generated,omitempty" bson:"usage_transactions_generated"`
+	MRCTransactionsGenerated   []uint64                          `json:"mrc_transactions_generated,omitempty" bson:"mrc_transactions_generated"`
+	BillUDRActionCompleted     []uint64                          `json:"bill_udr_actions_completed,omitempty" bson:"bill_udr_actions_completed"`
+	ActionDuration             map[string]map[string]interface{} `json:"event_log_action_duration" bson:"event_log_action_duration"`
 }

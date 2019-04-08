@@ -58,16 +58,22 @@ func chartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var df struct {
-		TestType           string
-		CollectionInterval string
-		UDRRate            *templateDataFeed
-		AppCPU             *templateDataFeed
-		AppMem             *templateDataFeed
-		DBCPU              *templateDataFeed
-		UDRAbsolute        *templateDataFeedUint64
-		LReads             *templateDataFeedUint64
-		LWrites            *templateDataFeedUint64
-		PReads             *templateDataFeedUint64
+		TestType                        string
+		CollectionInterval              string
+		UDRRate                         *templateDataFeed
+		AppCPU                          *templateDataFeed
+		AppMem                          *templateDataFeed
+		DBCPU                           *templateDataFeed
+		UDRAbsolute                     *templateDataFeedUint64
+		LReads                          *templateDataFeedUint64
+		LWrites                         *templateDataFeedUint64
+		PReads                          *templateDataFeedUint64
+		InvoicesClosed                  *templateDataFeedUint64
+		UsageTransactionsGenerated      *templateDataFeedUint64
+		MRCTransactionsGenerated        *templateDataFeedUint64
+		BillUDRActionCompleted          *templateDataFeedUint64
+		BillingActionDurationChartData  [][]interface{}
+		BillingActionItemCountChartData [][]interface{}
 	}
 
 	var trs []perftest.Result
@@ -122,6 +128,12 @@ func chartHandler(w http.ResponseWriter, r *http.Request) {
 	if df.TestType == "rating" {
 		df.UDRRate, _ = UDRRatesForTemplate(trs)
 		df.UDRAbsolute, _ = UDRCurrentProcessedForTemplate(trs)
+	} else if df.TestType == "billing" {
+		df.InvoicesClosed, _ = InvoiceClosedForTemplate(trs)
+		df.UsageTransactionsGenerated, _ = UsageTransactionsGeneratedForTemplate(trs)
+		df.MRCTransactionsGenerated, _ = MRCTransactionsGeneratedForTemplate(trs)
+		df.BillUDRActionCompleted, _ = BillUDRActionCompletedForTemplate(trs)
+		GetBillingActionChartData(trs, &(df.BillingActionDurationChartData), &(df.BillingActionItemCountChartData))
 	}
 
 	w.Header().Set("Content-Type", "text/html")

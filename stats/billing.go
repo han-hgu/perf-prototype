@@ -3,6 +3,7 @@ package stats
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -47,13 +48,13 @@ func (c *Controller) UpdateBillingResult(ti *perftest.TestInfo, dbIDTracker *per
 	go c.GetNumOfBillUDRActionsCompleted(&wg, dbIDTracker.EventlogStarted, &(tr.BillUDRActionCompleted))
 
 	wg.Add(1)
-	go c.GetNumOfUsageTranscationsGenerated(&wg, tp.OwnerName, dbIDTracker.EventlogStarted, &(tr.UsageTransactionsGenerated))
+	go c.GetNumOfUsageTranscationsGenerated(&wg, tp.OwnerName, dbIDTracker.StatementDetailsStarted, &(tr.UsageTransactionsGenerated))
 
 	wg.Add(1)
-	go c.GetNumOfMRCTransactionsGenerated(&wg, tp.OwnerName, dbIDTracker.EventlogStarted, &(tr.MRCTransactionsGenerated))
+	go c.GetNumOfMRCTransactionsGenerated(&wg, tp.OwnerName, dbIDTracker.StatementDetailsStarted, &(tr.MRCTransactionsGenerated))
 
 	wg.Add(1)
-	go c.GetNumOfInvoicesClosed(&wg, tp.OwnerName, dbIDTracker.EventlogStarted, &(tr.InvoicesClosed))
+	go c.GetNumOfInvoicesClosed(&wg, tp.OwnerName, dbIDTracker.InvoiceStarted, &(tr.InvoicesClosed))
 
 	wg.Wait()
 
@@ -71,9 +72,6 @@ func (c *Controller) UpdateBillingResult(ti *perftest.TestInfo, dbIDTracker *per
 			go c.GetUsageBillingDuration(&wg, dbIDTracker.EventlogStarted, &(tr.UsageBillingDuration))
 
 			wg.Wait()
-			// HAN >>>
-			log.Printf("DEBUG: MRC billing duration: %v", tr.MRCBillingDuration)
-			log.Printf("DEBUG: usage billing duration: %v", tr.UsageBillingDuration)
 			tr.BillingDuration = tr.BillingEndTime.Sub(tr.BillingStartTime).String()
 		})
 	}
@@ -94,12 +92,15 @@ func (c *Controller) UpdateBillingResult(ti *perftest.TestInfo, dbIDTracker *per
 		}
 
 		tr.BillrunEndOnce.Do(func() {
+			// summarize duration for all actions with billing module
+			ret, _ := c.GetBillingActions(dbIDTracker.EventlogStarted)
+			tr.ActionDuration = ret
+
 			tr.Duration = tr.BillrunEndTime.Sub(tr.BillingStartTime).String()
 			tr.Done = true
 		})
 	}
 
-	dbIDTracker.EventLogLastProcessed = dbIDTracker.EventLogCurrent
 	return nil
 }
 
@@ -108,7 +109,7 @@ func (c *Controller) GetBillingStartTime(wg *sync.WaitGroup, owner string, last 
 	if wg != nil {
 		defer wg.Done()
 	}
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Starting Bill Run%%for owner ''%v''' order by id desc", last, owner)
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Module = 'Billing' and Result like 'Starting Bill Run%%for owner ''%v''' order by id desc", last, owner)
 	c.getLastVal(q, []interface{}{billingStartTime})
 }
 
@@ -117,7 +118,7 @@ func (c *Controller) GetBillingEndTime(wg *sync.WaitGroup, owner string, last ui
 	if wg != nil {
 		defer wg.Done()
 	}
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Billing for owner ''%v''%%' order by id desc", last, owner)
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Module = 'Billing' and Result like 'Finished Billing for owner ''%v''%%' order by id desc", last, owner)
 	c.getLastVal(q, []interface{}{billingEndTime})
 }
 
@@ -126,7 +127,7 @@ func (c *Controller) GetInvoiceRenderStartTime(wg *sync.WaitGroup, owner string,
 	if wg != nil {
 		defer wg.Done()
 	}
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Running Render Invoice for owner ''%v''' order by id desc", last, owner)
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Module = 'Billing' and Result = 'Running Render Invoice for owner ''%v''' order by id desc", last, owner)
 	c.getLastVal(q, []interface{}{invoiceRenderStartTime})
 }
 
@@ -135,7 +136,7 @@ func (c *Controller) GetInvoiceRenderEndTime(wg *sync.WaitGroup, owner string, l
 	if wg != nil {
 		defer wg.Done()
 	}
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result = 'Finished Render Invoice for owner ''%v''' order by id desc", last, owner)
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Module = 'Billing' and Result = 'Finished Render Invoice for owner ''%v''' order by id desc", last, owner)
 	c.getLastVal(q, []interface{}{invoiceRenderEndTime})
 }
 
@@ -144,7 +145,7 @@ func (c *Controller) GetBillrunEndTime(wg *sync.WaitGroup, owner string, last ui
 	if wg != nil {
 		defer wg.Done()
 	}
-	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = 'CheckForBillRun' and Module = 'Billing' and Result like 'Finished Bill Run%%for owner ''%v''' order by id desc", last, owner)
+	q := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Module = 'Billing' and Result like 'Finished Bill Run%%for owner ''%v''' order by id desc", last, owner)
 	c.getLastVal(q, []interface{}{billrunEndTime})
 }
 
@@ -155,7 +156,7 @@ func (c *Controller) GetNumOfBillUDRActionsCompleted(wg *sync.WaitGroup, last ui
 	}
 	var tp uint64
 	q := fmt.Sprintf("select count(*) from eventlog where id > %v and action = 'BillUDR' and Result like 'Finished Usage Billing for User%%'", last)
-	c.getLastVal(q, []interface{}{tp})
+	c.getLastVal(q, []interface{}{&tp})
 	*result = append(*result, tp)
 }
 
@@ -164,16 +165,43 @@ func (c *Controller) GetDurationForAction(last uint64, action string) string {
 	var startTime, endTime time.Time
 	qEndTime := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = '%v' and Module = 'Billing' order by id desc", last, action)
 	c.getLastVal(qEndTime, []interface{}{&endTime})
-	// HAN >>>
-	log.Printf("DEBUG: qEndTime query: %v", qEndTime)
-	log.Printf("qEndTime: %v", endTime)
 	qStartTime := fmt.Sprintf("select top 1 Date from eventlog where id > %v and Action = '%v' and Module = 'Billing' order by id", last, action)
 	c.getLastVal(qStartTime, []interface{}{&startTime})
-	// HAN >>>
-	log.Printf("DEBUG: qStartTime query: %v", qStartTime)
-	log.Printf("qStartTime: %v", startTime)
-	log.Printf("returns: %v", endTime.Sub(startTime).String())
 	return endTime.Sub(startTime).String()
+}
+
+// Get BillingActions groups the action from eventlog and report the number of entries, the duration between the first and the last and
+// the rate if duration is not 0
+func (c *Controller) GetBillingActions(last uint64) (map[string]map[string]interface{}, error) {
+	ret := make(map[string]map[string]interface{})
+
+	rows, err := c.db.Query("select action, datediff(s, min(date), max(date)), count(1) " +
+		"from eventlog " +
+		"where module = 'Billing' and " + fmt.Sprintf("id > %v ", last) +
+		"group by action")
+
+	var action string
+	var duration, itemCount uint64
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&action, &duration, &itemCount)
+		if err != nil {
+			return make(map[string]map[string]interface{}), err
+		}
+		currMap := make(map[string]interface{})
+		var dur time.Duration
+		dur, _ = time.ParseDuration(strconv.FormatUint(duration, 10) + "s")
+		currMap["item_count"] = itemCount
+		currMap["duration"] = dur.String()
+		if duration == 0 {
+			currMap["rate"] = 0
+		} else {
+			currMap["rate"] = float64(itemCount) / float64(duration)
+		}
+		ret[action] = currMap
+	}
+
+	return ret, nil
 }
 
 // GetUsageBillingDuration calculates the duration between the first eventlog with action "BillUDR" to the last
@@ -183,8 +211,6 @@ func (c *Controller) GetUsageBillingDuration(wg *sync.WaitGroup, last uint64, du
 	}
 
 	*duration = c.GetDurationForAction(last, "BillUDR")
-	// HAN >>>
-	log.Printf("DEBUG: duration: %v", duration)
 }
 
 // GetMRCBillingDuration calculates the duration between the first eventlog with action "BillUserPackage" to the last
@@ -193,73 +219,45 @@ func (c *Controller) GetMRCBillingDuration(wg *sync.WaitGroup, last uint64, dura
 		defer wg.Done()
 	}
 
-	*duration = c.GetDurationForAction(last, "BillUserPackage")
+	*duration = c.GetDurationForAction(last, "DoBillUserPackage")
 }
 
-// BillrunStarted needs to return true to call stats gatherin functions below
-// this is to make sure the billrun ID from billrunhistory table is
-// indeed the bill run we are interested in
-func (c *Controller) BillrunStarted(owner string, last uint64) bool {
-	var startTime time.Time
-	c.GetBillingStartTime(nil, owner, last, &startTime)
-	return !startTime.IsZero()
-}
-
-// GetNumOfInvoicesClosed gets the number of closed invoices related to the latest billrun
+// GetNumOfInvoicesClosed gets the number of invoices closed within the interval
 func (c *Controller) GetNumOfInvoicesClosed(wg *sync.WaitGroup, owner string, last uint64, result *[]uint64) {
 	if wg != nil {
 		defer wg.Done()
 	}
 
-	// We have to correlate to eventlog to make sure that the last entry from
-	// bill run history table is really the current billrun
-	if !c.BillrunStarted(owner, last) {
-		*result = append(*result, 0)
-		return
-	}
+	var invoicesClosed uint64
+	q := `select count(*) from invoice
+	inner join InvoiceStatusType ist on ist.id = invoice.InvoiceStatusTypeID
+	where ist.name = 'Closed' ` + fmt.Sprintf("and invoice.id > %v", last)
 
-	var totalTrans uint64
-	q := `select count(distinct(vi.InvoiceID))
-				from viewinvoice vi
-				inner join(select top 1 id from billrunhistory order by id desc) as A on vi.billrunhistoryid = A.id
-				inner join viewstatementdetails vsd on vsd.InvoiceID = vi.InvoiceID
-				inner join userpackage up on up.id = vsd.UserPackageID
-				inner join invoicestatustype ist on ist.id = vi.InvoiceStatusTypeID
-				where ist.name = 'Closed'`
-
-	c.getLastVal(q, []interface{}{&totalTrans})
-	*result = append(*result, totalTrans)
+	c.getLastVal(q, []interface{}{&invoicesClosed})
+	log.Printf("DEBUG: invoices closed query: %v", q)
+	log.Printf("DEBUG: invoices closed in total: %v", invoicesClosed)
+	*result = append(*result, invoicesClosed)
 }
 
 // GetNumOfTransactionsGenerated a helper function for both MRC and usage transactions
 func (c *Controller) GetNumOfTransactionsGenerated(owner string, last uint64, isUsageTransaction bool, result *[]uint64) {
-	// We have to correlate to eventlog to make sure that the last entry from
-	// bill run history table is really the current billrun
-	if !c.BillrunStarted(owner, last) {
-		*result = append(*result, 0)
-		return
-	}
-
 	var totalTrans uint64
 
 	var whereClause string
 	if isUsageTransaction {
-		whereClause = `where vsd.name like '%Telecom Usage%'`
+		whereClause = `where detail like '%Telecom Usage%' `
 	} else {
-		whereClause = `where vsd.name not like '%Telecom Usage%'`
+		whereClause = `where detail not like '%Telecom Usage%' `
 	}
 
-	q := `select count(vsd.id) from viewinvoice vi
-	      inner join (select top 1 id from billrunhistory order by id desc) as A on vi.billrunhistoryid = A.id
-				inner join viewstatementdetails vsd on vsd.InvoiceID = vi.InvoiceID ` + whereClause
+	whereClause += fmt.Sprintf("and id > %v", last)
+
+	q := "select count(*) from statementdetails " + whereClause
 	c.getLastVal(q, []interface{}{&totalTrans})
-	// HAN >>>
-	log.Printf("DEBUG: Usage transaction query: %v", q)
-	log.Printf("DEBUG: Usage transaction generated: %v", totalTrans)
 	*result = append(*result, totalTrans)
 }
 
-// GetNumOfUsageTranscationsGenerated gets the number of usage transactions related to the latest billrun
+// GetNumOfUsageTranscationsGenerated gets the number of usage transactions up to now
 func (c *Controller) GetNumOfUsageTranscationsGenerated(wg *sync.WaitGroup, owner string, last uint64, result *[]uint64) {
 	if wg != nil {
 		defer wg.Done()
@@ -268,7 +266,7 @@ func (c *Controller) GetNumOfUsageTranscationsGenerated(wg *sync.WaitGroup, owne
 	c.GetNumOfTransactionsGenerated(owner, last, true, result)
 }
 
-// GetNumOfMRCTransactionsGenerated gets the number of MRC transactions related to the latest billrun
+// GetNumOfMRCTransactionsGenerated gets the number of MRC transactions up to now
 func (c *Controller) GetNumOfMRCTransactionsGenerated(wg *sync.WaitGroup, owner string, last uint64, result *[]uint64) {
 	if wg != nil {
 		defer wg.Done()

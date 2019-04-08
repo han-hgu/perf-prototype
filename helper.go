@@ -163,7 +163,82 @@ func UDRRatesForTemplate(trs []perftest.Result) (*templateDataFeed, error) {
 
 // UDRCurrentProcessedForTemplate returns the total number of UDRs per interval
 func UDRCurrentProcessedForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
-	return collectSamplesForTemplateUint64("Total UDR processed", trs, perftest.FetchUDRProcessedTrend)
+	return collectSamplesForTemplateUint64("Total UDR Processed", trs, perftest.FetchUDRProcessedTrend)
+}
+
+// InvoiceClosedForTemplate returns the number of invoices closed
+func InvoiceClosedForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
+	return collectSamplesForTemplateUint64("Invoices Closed", trs, perftest.FetchInvoicesClosed)
+}
+
+// UsageTransactionsGeneratedForTemplate returns the number of usage transactions generated
+func UsageTransactionsGeneratedForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
+	return collectSamplesForTemplateUint64("Usage Transactions Generated", trs, perftest.FetchUsageTransactionsGenerated)
+}
+
+// MRCTransactionsGeneratedForTemplate returns the number of MRC transactions generated
+func MRCTransactionsGeneratedForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
+	return collectSamplesForTemplateUint64("MRC Transactions Generated", trs, perftest.FetchMRCTransactionsGenerated)
+}
+
+// BillUDRActionCompletedForTemplate returns the number of BillUDR actions completed
+func BillUDRActionCompletedForTemplate(trs []perftest.Result) (*templateDataFeedUint64, error) {
+	return collectSamplesForTemplateUint64("BillUDR Actions Completed", trs, perftest.FetchBillUDRActionCompleted)
+}
+
+// GetBillingActionChartData prepares the data for comparison bar charts
+func GetBillingActionChartData(trs []perftest.Result, BillingActionDurationChartData *[][]interface{}, BillingActionItemCountChartData *[][]interface{}) error {
+	*BillingActionDurationChartData = make([][]interface{}, 0)
+	*BillingActionItemCountChartData = make([][]interface{}, 0)
+	billingActions := make(map[string]struct{}, 0)
+
+	// Create heading row while construct a map for all actions
+	firstRowForDuration := make([]interface{}, 0)
+	firstRowForItemCount := make([]interface{}, 0)
+	firstRowForDuration = append(firstRowForDuration, "Action")
+	firstRowForItemCount = append(firstRowForItemCount, "Action")
+	for i := 0; i < len(trs); i++ {
+		br, _ := trs[i].(*perftest.BillingResult)
+		firstRowForDuration = append(firstRowForDuration, br.TestResult.ChartTitle())
+		firstRowForItemCount = append(firstRowForItemCount, br.TestResult.ChartTitle())
+
+		for action := range br.ActionDuration {
+			if _, ok := billingActions[action]; !ok {
+				billingActions[action] = struct{}{}
+			}
+		}
+	}
+	(*BillingActionDurationChartData) = append((*BillingActionDurationChartData), firstRowForDuration)
+	(*BillingActionItemCountChartData) = append((*BillingActionItemCountChartData), firstRowForItemCount)
+
+	for k := range billingActions {
+		rowForDuration := make([]interface{}, 0)
+		rowForItemCount := make([]interface{}, 0)
+		rowForDuration = append(rowForDuration, k)
+		rowForItemCount = append(rowForItemCount, k)
+		for i := 0; i < len(trs); i++ {
+			br, _ := trs[i].(*perftest.BillingResult)
+
+			if _, ok := br.ActionDuration[k]; ok {
+				dur, _ := time.ParseDuration(br.ActionDuration[k]["duration"].(string))
+				rowForDuration = append(rowForDuration, dur.Seconds())
+				rowForItemCount = append(rowForItemCount, br.ActionDuration[k]["item_count"])
+			} else {
+				rowForDuration = append(rowForDuration, 0)
+				rowForItemCount = append(rowForItemCount, 0)
+			}
+		}
+
+		(*BillingActionDurationChartData) = append((*BillingActionDurationChartData), rowForDuration)
+		(*BillingActionItemCountChartData) = append((*BillingActionItemCountChartData), rowForItemCount)
+	}
+
+	return nil
+}
+
+// GetBillingActionItemCountChartData prepares the data for comparison bar chart for different billing actions for item count
+func GetBillingActionItemCountChartData(trs []perftest.Result) ([][]interface{}, error) {
+	return nil, nil
 }
 
 // newUUID generates a random UUID according to RFC 4122

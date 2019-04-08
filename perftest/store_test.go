@@ -41,6 +41,7 @@ func TestStoreAdd(t *testing.T) {
 	tr.AddPhysicalReads(3)
 	tr.Metadata.AppConf.SysInfo = make(map[string]interface{}, 0)
 	tr.Metadata.DBParams.SysInfo = make(map[string]interface{}, 0)
+	tr.IndexUsageStats = make(map[string]map[string]interface{}, 0)
 	tr.AppConf.Options = make(map[string]string)
 	tr.ID = bson.NewObjectId()
 	e := s.add(&tr)
@@ -86,6 +87,7 @@ func TestStoreGet(t *testing.T) {
 	tr1.AddLogicalWrites(2)
 	tr1.AddPhysicalReads(3)
 	tr1.AppConf.Options = make(map[string]string)
+	tr1.IndexUsageStats = make(map[string]map[string]interface{}, 0)
 	tr1.ID = bson.NewObjectId()
 
 	tr2 := TestResult{}
@@ -102,6 +104,7 @@ func TestStoreGet(t *testing.T) {
 	tr2.AddLogicalWrites(2)
 	tr2.AddPhysicalReads(3)
 	tr2.AppConf.Options = make(map[string]string, 0)
+	tr2.IndexUsageStats = make(map[string]map[string]interface{}, 0)
 	tr2.ID = bson.NewObjectId()
 	s.add(&tr1)
 	s.add(&tr2)

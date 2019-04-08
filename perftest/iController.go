@@ -9,4 +9,6 @@ type iController interface {
 	UpdateDBParameters(*DBConf, *DBParams) error
 	TrackKPI(wg *sync.WaitGroup, dbname string, relativeCPU *float32, logicalReads *uint64, logicalWrites *uint64, physicalReads *uint64)
 	GetEIPOptions(ac *AppConf) error
+	SnapshotIndexUsageStats(table string) error
+	IndexUsageStatsComparison(tableBefore, tableAfter string) (map[string]map[string]interface{}, error)
 }

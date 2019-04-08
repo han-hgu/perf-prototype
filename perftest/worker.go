@@ -120,6 +120,8 @@ func createWorker(tm *Manager, t Params) *worker {
 
 	w.ti = &tinfo
 
+	w.InitIndexUsageStatsTracking()
+
 	// baseline the database KPI
 	// TODO find a better place and multitasking
 	cpudontcare := new(float32)
@@ -129,6 +131,20 @@ func createWorker(tm *Manager, t Params) *worker {
 	w.sc.TrackKPI(nil, tinfo.Params.DBConfig().Database, cpudontcare, lreadbase, lwritebase, preadbase)
 
 	return w
+}
+
+func (w *worker) InitIndexUsageStatsTracking() {
+	tableBefore := "_preindex_usage_stats_" + w.ti.Params.TestID().Hex()
+	w.ti.Params.IndexUsageStatsTables().TableBefore = tableBefore
+	w.sc.SnapshotIndexUsageStats(tableBefore)
+}
+
+func (w *worker) FinalizeIndexUsageStatsTracking() {
+	tableAfter := "_postindex_usage_stats_" + w.ti.Params.TestID().Hex()
+	w.ti.Params.IndexUsageStatsTables().TableAfter = tableAfter
+	w.sc.SnapshotIndexUsageStats(tableAfter)
+	idxUsageStats := w.ti.Result.GetIndexUsageStats()
+	*idxUsageStats, _ = w.sc.IndexUsageStatsComparison(w.ti.Params.IndexUsageStatsTables().TableBefore, tableAfter)
 }
 
 func (w *worker) TrackKPI() {
@@ -296,6 +312,7 @@ func (w *worker) run() {
 	for {
 		if w.ti.Result.Result().Done {
 			w.once.Do(func() {
+				w.FinalizeIndexUsageStatsTracking()
 				w.tm.s.add(w.ti.Result)
 				timer.Stop()
 			})

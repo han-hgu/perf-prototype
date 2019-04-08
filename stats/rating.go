@@ -172,3 +172,25 @@ func (c *Controller) getLastUdrExceptionID() (id uint64) {
 
 	return id
 }
+
+func (c *Controller) getLastStatementDetailsID() (id uint64) {
+	qStatementDetails := "select top 1 id from statementdetails order by id desc"
+
+	valExists, e := c.getLastVal(qStatementDetails, []interface{}{&id})
+	if !valExists || e != nil {
+		log.Fatalf("getLastStatementDetailsID() gets an error: %v", e)
+	}
+
+	return id
+}
+
+func (c *Controller) getLastInvoiceID() (id uint64) {
+	qInvoice := "select top 1 id from invoice order by id desc"
+
+	valExists, e := c.getLastVal(qInvoice, []interface{}{&id})
+	if !valExists || e != nil {
+		log.Fatalf("getLastInvoiceID() gets an error: %v", e)
+	}
+
+	return id
+}
